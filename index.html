@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGV Aisle Width Calculator (B56.5)</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00387b; /* RAL 5002 Ultramarine Blue */
+            --primary-hover: #004c9e; /* Lighter version of RAL 5002 */
+            --secondary: #9CA3AF;
+            --light-bg: #F9FAFB;
+            --border: #E5E7EB;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            --card-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --transition: all 0.3s ease;
+        }
+        
+        body {
+            font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-bg);
+            color: #1F2937;
+            line-height: 1.5;
+        }
+        
+        .container {
+            max-width: 1200px;
+        }
+        
+        .app-header {
+            background: linear-gradient(135deg, #00387b 0%, #004c9e 100%);
+            padding: 2rem 1rem;
+            border-radius: 0 0 1.5rem 1.5rem;
+            margin-bottom: -1.5rem;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 1rem;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        
+        .card:hover {
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transform: translateY(-2px);
+        }
+        
+        .card-header {
+            border-bottom: 1px solid var(--border);
+            padding: 1.25rem 1.5rem;
+            background-color: var(--light-bg);
+            font-weight: 600;
+        }
+        
+        .card-body {
+            padding: 1.5rem;
+        }
+        
+        .btn {
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+            transform: translateY(-1px);
+        }
+        
+        .btn-secondary {
+            background-color: var(--secondary);
+            color: white;
+        }
+        
+        .btn-outline {
+            background-color: transparent;
+            border: 1px solid var(--border);
+        }
+        
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+        
+        .toggle-button-group {
+            display: inline-flex;
+            overflow: hidden;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+        }
+        
+        .toggle-button {
+            position: relative;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border);
+            background-color: white;
+            color: #4B5563;
+            transition: var(--transition);
+            z-index: 1;
+        }
+        
+        .toggle-button:first-child {
+            border-top-left-radius: 0.5rem;
+            border-bottom-left-radius: 0.5rem;
+        }
+        
+        .toggle-button:last-child {
+            border-top-right-radius: 0.5rem;
+            border-bottom-right-radius: 0.5rem;
+        }
+        
+        .toggle-button.active {
+            background-color: var(--primary);
+            color: white;
+            border-color: var(--primary);
+            z-index: 2;
+        }
+        
+        .toggle-button:not(:last-child) {
+            margin-right: -1px;
+        }
+        
+        .form-label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #4B5563;
+            margin-bottom: 0.5rem;
+        }
+        
+        .form-control {
+            display: block;
+            width: 100%;
+            padding: 0.625rem 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: #1F2937;
+            background-color: white;
+            background-clip: padding-box;
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            transition: var(--transition);
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+        
+        .form-select {
+            display: block;
+            width: 100%;
+            padding: 0.625rem 0.75rem;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            color: #1F2937;
+            background-color: white;
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%236B7280'%3e%3cpath fill-rule='evenodd' d='M10 3a1 1 0 01.707.293l7 7a1 1 0 01-1.414 1.414L10 5.414 3.707 11.707a1 1 0 01-1.414-1.414l7-7A1 1 0 0110 3z' clip-rule='evenodd'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1.5em 1.5em;
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            appearance: none;
+            transition: var(--transition);
+        }
+        
+        .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+        
+        .section-title {
+            position: relative;
+            font-weight: 600;
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.25rem;
+            color: #1F2937;
+            font-size: 1.125rem;
+        }
+        
+        .section-title::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            bottom: 0;
+            width: 3rem;
+            height: 0.25rem;
+            background-color: var(--primary);
+            border-radius: 0.125rem;
+        }
+        
+        .result-card {
+            background-color: var(--light-bg);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            transition: var(--transition);
+            height: 100%;
+        }
+        
+        .result-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transform: translateY(-2px);
+        }
+        
+        .result-label {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #6B7280;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+            margin-bottom: 0.5rem;
+        }
+        
+        .result-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #1F2937;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            border-radius: 9999px;
+        }
+        
+        .badge-green {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: #047857;
+        }
+        
+        .badge-yellow {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: #B45309;
+        }
+        
+        .badge-red {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #B91C1C;
+        }
+        
+        .badge-blue {
+            background-color: rgba(79, 70, 229, 0.1);
+            color: #4338CA;
+        }
+        
+        .alert {
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .alert-success {
+            background-color: rgba(16, 185, 129, 0.1);
+            color: #047857;
+            border-left: 4px solid #10B981;
+        }
+        
+        .alert-warning {
+            background-color: rgba(245, 158, 11, 0.1);
+            color: #B45309;
+            border-left: 4px solid #F59E0B;
+        }
+        
+        .alert-danger {
+            background-color: rgba(239, 68, 68, 0.1);
+            color: #B91C1C;
+            border-left: 4px solid #EF4444;
+        }
+        
+        .text-success {
+            color: #047857;
+        }
+        
+        .text-warning {
+            color: #B45309;
+        }
+        
+        .text-danger {
+            color: #B91C1C;
+        }
+        
+        /* Fade in animation for results */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        
+        /* Mobile-specific styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 0.5rem;
+            }
+            
+            .card-body {
+                padding: 1rem;
+            }
+            
+            .form-row {
+                margin-bottom: 1rem;
+            }
+            
+            input, select {
+                font-size: 16px !important; /* Prevents iOS zoom */
+            }
+            
+            .toggle-button-group {
+                width: 100%;
+            }
+            
+            .toggle-button {
+                flex: 1;
+                text-align: center;
+                padding: 0.5rem 0.25rem;
+            }
+            
+            /* Improved mobile results layout */
+            .result-card {
+                padding: 1rem;
+                margin-bottom: 0.75rem;
+            }
+            
+            #results-section .grid {
+                gap: 0.75rem;
+            }
+            
+            .grid-cols-3 {
+                display: grid;
+                grid-template-columns: 1fr;
+            }
+            
+            .grid-cols-3 > div {
+                padding: 0.75rem !important;
+                border-bottom: 1px solid var(--border);
+            }
+            
+            .grid-cols-3 > div:last-child {
+                border-bottom: none;
+            }
+            
+            #compatibility-status, #compliance-status {
+                padding: 0.75rem !important;
+                font-size: 0.875rem;
+            }
+            
+            .badge {
+                display: inline-block;
+                margin-bottom: 0.5rem;
+            }
+            
+            .section-title {
+                font-size: 1rem;
+                margin-bottom: 1rem;
+            }
+        }
+        
+        /* Mobile-specific result card styles */
+        .mobile-result-card {
+            padding: 0.875rem !important;
+            margin-bottom: 0.5rem !important;
+        }
+        
+        /* Styles for disabled inputs */
+        .form-control:disabled {
+            background-color: rgba(0, 56, 123, 0.05);
+            border-color: rgba(0, 56, 123, 0.2);
+            cursor: not-allowed;
+        }
+        
+        /* Mobile grid adjustments */
+        .mobile-grid {
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        
+        .mobile-cell {
+            padding: 0.75rem !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        
+        /* Prevent overflow issues on mobile */
+        @media (max-width: 568px) {
+            .overflow-x-auto {
+                overflow-x: auto;
+            }
+            
+            .table-container {
+                margin: 0 -1rem;
+                padding: 0 1rem;
+                width: calc(100% + 2rem);
+            }
+            
+            .result-value {
+                font-size: 1.125rem !important;
+                word-break: break-word;
+            }
+        }
+        
+        /* Custom tooltip */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            cursor: help;
+        }
+        
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #1F2937;
+            color: white;
+            text-align: center;
+            border-radius: 6px;
+            padding: 0.5rem;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.75rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .tooltip .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #1F2937 transparent transparent transparent;
+        }
+        
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Mobile tooltips */
+        @media (max-width: 768px) {
+            .tooltip .tooltip-text {
+                width: 180px;
+                left: auto;
+                right: 0;
+                transform: none;
+            }
+            
+            .tooltip .tooltip-text::after {
+                left: auto;
+                right: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="app-header text-white mb-8">
+        <div class="container mx-auto text-center">
+            <h1 class="text-3xl md:text-4xl font-bold mb-2">Bastian Solutions AV Aisle Width Calculator</h1>
+            <p class="text-indigo-100">Based on ANSI/ITSDF B56.5 Safety Standards</p>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 pb-12">
+        <!-- Device Toggle -->
+        <div class="flex justify-center mb-6 md:hidden">
+            <div class="toggle-button-group">
+                <button type="button" id="desktop-btn" class="toggle-button active">
+                    Desktop
+                </button>
+                <button type="button" id="mobile-btn" class="toggle-button">
+                    Mobile
+                </button>
+            </div>
+        </div>
+
+        <!-- Calculator Card -->
+        <div class="card mb-8" id="calculator-container">
+        <div class="card mb-8" id="calculator-container">
+            <div class="card-header flex justify-between items-center">
+                <h2 class="text-lg">Input Parameters</h2>
+                <button id="clear-btn" class="btn btn-outline text-sm">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Clear All
+                </button>
+            </div>
+            <div class="card-body">
+                <!-- Units Selector -->
+                <div class="mb-6">
+                    <label class="form-label">Units</label>
+                    <div class="flex flex-col md:flex-row gap-3">
+                        <div class="toggle-button-group">
+                            <button type="button" id="metric-btn" class="toggle-button active">
+                                Metric
+                            </button>
+                            <button type="button" id="imperial-btn" class="toggle-button">
+                                Imperial
+                            </button>
+                        </div>
+                        
+                        <div id="metric-units" class="toggle-button-group">
+                            <button type="button" id="m-btn" class="toggle-button active">
+                                Meters (m)
+                            </button>
+                            <button type="button" id="mm-btn" class="toggle-button">
+                                Millimeters (mm)
+                            </button>
+                        </div>
+                        
+                        <div id="imperial-units" class="toggle-button-group hidden">
+                            <button type="button" id="ft-btn" class="toggle-button active">
+                                Feet (ft)
+                            </button>
+                            <button type="button" id="in-btn" class="toggle-button">
+                                Inches (in)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Traffic Direction -->
+                <div class="mb-6">
+                    <label class="form-label">Traffic Direction</label>
+                    <div class="toggle-button-group">
+                        <button type="button" id="single-btn" class="toggle-button active">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                            </svg>
+                            Single Direction
+                        </button>
+                        <button type="button" id="bidirectional-btn" class="toggle-button">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1 inline-block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                            </svg>
+                            Bidirectional
+                        </button>
+                    </div>
+                </div>
+
+                <!-- AGV Model Selector -->
+                <div class="mb-6">
+                    <label for="agv-model" class="form-label">
+                        Select AGV Model
+                        <span class="tooltip text-gray-400 ml-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="tooltip-text">Choose from predefined AGV models or select "Custom Configuration" to enter your own values</span>
+                        </span>
+                    </label>
+                    <select id="agv-model" class="form-select">
+                        <option value="custom">Custom Configuration</option>
+                        <option value="8TB50A">8TB50A</option>
+                        <option value="8HBC40A">8HBC40A</option>
+                        <option value="M10">M10</option>
+                        <option value="ML2">ML2</option>
+                        <option value="CB18">CB18</option>
+                        <option value="Oppent E-Base 7">Oppent E-Base 7</option>
+                    </select>
+                </div>
+
+                <!-- Form Inputs -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label for="agv-width" class="form-label">
+                            AGV Width <span id="width-unit">(m)</span>*
+                            <span class="tooltip text-gray-400 ml-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="tooltip-text">The maximum width of the AGV vehicle</span>
+                            </span>
+                        </label>
+                        <input type="number" id="agv-width" step="0.001" inputmode="decimal" required class="form-control" disabled>
+                    </div>
+                    
+                    <div>
+                        <label for="agv-speed" class="form-label">
+                            AGV Speed <span id="speed-unit">(m/s)</span>*
+                            <span class="tooltip text-gray-400 ml-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="tooltip-text">The maximum speed of the AGV</span>
+                            </span>
+                        </label>
+                        <input type="number" id="agv-speed" step="0.1" inputmode="decimal" required class="form-control" disabled>
+                    </div>
+                    
+                    <div>
+                        <label for="payload-width" class="form-label">
+                            Payload Width <span id="payload-width-unit">(m)</span>
+                            <span class="tooltip text-gray-400 ml-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="tooltip-text">The width of the payload/load. Use this if the payload is wider than the AGV itself.</span>
+                            </span>
+                        </label>
+                        <input type="number" id="payload-width" step="0.001" inputmode="decimal" class="form-control">
+                    </div>
+                    
+                    <div>
+                        <label for="current-aisle-width" class="form-label">
+                            Current Aisle Width <span id="current-aisle-unit">(m)</span>
+                            <span class="tooltip text-gray-400 ml-1">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                <span class="tooltip-text">Enter the current aisle width to check for compliance</span>
+                            </span>
+                        </label>
+                        <input type="number" id="current-aisle-width" step="0.001" inputmode="decimal" class="form-control">
+                    </div>
+                </div>
+                
+                <div class="text-xs text-gray-500 mb-4">* Required fields</div>
+                
+                <button id="calculate-btn" class="btn btn-primary w-full py-3 text-base font-medium">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                    </svg>
+                    Calculate
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section (Initially Hidden) -->
+        <section id="results-section" class="card mb-8 hidden fade-in">
+            <div class="card-header">
+                <h2 class="text-lg font-semibold">Results</h2>
+            </div>
+            <div class="card-body">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div class="result-card">
+                        <div class="result-label">AGV Width</div>
+                        <div id="agv-width-result" class="result-value"></div>
+                    </div>
+                    
+                    <div class="result-card">
+                        <div class="result-label">Payload Width</div>
+                        <div id="payload-width-result" class="result-value"></div>
+                    </div>
+                    
+                    <div class="result-card border-l-4 border-indigo-500">
+                        <div class="result-label">Effective Width Used</div>
+                        <div id="total-width-result" class="result-value"></div>
+                    </div>
+                    
+                    <div class="result-card border-l-4 border-indigo-500">
+                        <div class="result-label">Straight Aisle Width</div>
+                        <div id="aisle-width-result" class="result-value"></div>
+                    </div>
+                </div>
+                
+                <!-- Compatibility Status (Initially Hidden) -->
+                <div id="compatibility-status" class="alert alert-danger mb-6 hidden">
+                    <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span class="font-medium">Non-Compatible - Current aisle width is insufficient for vehicle passage</span>
+                    </div>
+                </div>
+                
+                <!-- Compliance Status (Initially Hidden) -->
+                <div id="compliance-status" class="mb-6 hidden"></div>
+                
+                <!-- Minimum Requirements Table -->
+                <div class="mb-6">
+                    <h3 class="section-title">Minimum Aisle Widths by Classification</h3>
+                    
+                    <div class="table-container overflow-x-auto">
+                        <div class="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm">
+                            <div class="px-4 py-3 border-b border-gray-200 bg-gray-50">
+                                <span class="badge badge-blue">Single Direction Traffic</span>
+                            </div>
+                        
+                        <div class="divide-y divide-gray-200">
+                            <div class="grid grid-cols-3 px-4 py-3">
+                                <div class="col-span-1">
+                                    <span class="badge badge-green">Non-Restricted Area</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span id="non-restricted-width" class="font-medium"></span>
+                                </div>
+                                <div class="col-span-1 text-sm text-gray-600">
+                                    Max Speed: No restrictions
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 px-4 py-3">
+                                <div class="col-span-1">
+                                    <span class="badge badge-yellow">Hazard Zone</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span id="hazard-zone-width" class="font-medium"></span>
+                                </div>
+                                <div class="col-span-1 text-sm text-gray-600">
+                                    Max Speed: 1.2 m/s
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 px-4 py-3">
+                                <div class="col-span-1">
+                                    <span class="badge badge-red">Restricted Area</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span id="restricted-area-width" class="font-medium"></span>
+                                </div>
+                                <div class="col-span-1 text-sm text-gray-600">
+                                    Max Speed: 0.3 m/s
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="px-4 py-3 border-t border-b border-gray-200 bg-gray-50">
+                            <span class="badge badge-blue">Bidirectional Traffic</span>
+                        </div>
+                        
+                        <div class="divide-y divide-gray-200">
+                            <div class="grid grid-cols-3 px-4 py-3">
+                                <div class="col-span-1">
+                                    <span class="badge badge-green">Non-Restricted Area</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span id="bidirectional-non-restricted-width" class="font-medium"></span>
+                                </div>
+                                <div class="col-span-1 text-sm text-gray-600">
+                                    Max Speed: No restrictions
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 px-4 py-3">
+                                <div class="col-span-1">
+                                    <span class="badge badge-yellow">Hazard Zone</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span id="bidirectional-hazard-zone-width" class="font-medium"></span>
+                                </div>
+                                <div class="col-span-1 text-sm text-gray-600">
+                                    Max Speed: 1.2 m/s
+                                </div>
+                            </div>
+                            
+                            <div class="grid grid-cols-3 px-4 py-3">
+                                <div class="col-span-1">
+                                    <span class="badge badge-red">Restricted Area</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span id="bidirectional-restricted-area-width" class="font-medium"></span>
+                                </div>
+                                <div class="col-span-1 text-sm text-gray-600">
+                                    Max Speed: 0.3 m/s
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Zone explanations -->
+                        <div class="p-4 text-sm text-gray-600 bg-gray-50 border-t border-gray-200">
+                            <div class="mb-2">
+                                <span class="badge badge-green mr-2">Non-Restricted Area</span>
+                                Allows full speed operation with standard safety sensors
+                            </div>
+                            <div class="mb-2">
+                                <span class="badge badge-yellow mr-2">Hazard Zone</span>
+                                Requires reduced speed, warning signals, and enhanced detection
+                            </div>
+                            <div>
+                                <span class="badge badge-red mr-2">Restricted Area</span>
+                                Requires very low speed operation and emergency stop devices
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Required Safety Features -->
+                <div class="mb-6">
+                    <h3 class="section-title">Required Safety Features</h3>
+                    <div class="bg-gray-50 p-4 rounded-lg shadow-sm">
+                        <ul id="required-features" class="list-disc pl-5 space-y-2"></ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+                
+        <!-- Reference Section (Collapsible) -->
+        <section class="card mb-8">
+            <div class="card-header flex justify-between items-center cursor-pointer" id="reference-header">
+                <h2 class="text-lg font-semibold">Reference Information</h2>
+                <button id="toggle-reference" class="p-1 rounded-full hover:bg-gray-100 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+            </div>
+            <div class="card-body hidden" id="reference-content">
+                <div class="mb-6">
+                    <h3 class="section-title">About ANSI/ITSDF B56.5</h3>
+                    <p class="text-gray-700 mb-4">
+                        The ANSI/ITSDF B56.5 Safety Standard provides guidelines for the design, operation, and maintenance of Automated Guided Vehicles (AGVs). The standard outlines the minimum safety requirements and practices for AGVs used in industrial environments.
+                    </p>
+                    <p class="text-gray-700 mb-4">
+                        According to B56.5, minimum aisle width requirements depend on:
+                    </p>
+                    <ul class="list-disc pl-5 mb-4 space-y-2 text-gray-700">
+                        <li>The width of the AGV and/or its payload</li>
+                        <li>Whether traffic is unidirectional or bidirectional</li>
+                        <li>The required clearance for the safety zone classification</li>
+                    </ul>
+                </div>
+                
+                <div class="mb-6">
+                    <h3 class="section-title">Zone Classifications</h3>
+                    <div class="overflow-hidden bg-white border border-gray-200 rounded-lg shadow-sm mb-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-200">
+                            <div class="p-4">
+                                <div class="mb-2">
+                                    <span class="badge badge-green">Non-Restricted Area</span>
+                                </div>
+                                <ul class="list-disc pl-5 text-sm text-gray-700 space-y-2">
+                                    <li>Clearance: 0.5m minimum on each side</li>
+                                    <li>No speed restrictions</li>
+                                    <li>Standard safety sensors required</li>
+                                </ul>
+                            </div>
+                            <div class="p-4">
+                                <div class="mb-2">
+                                    <span class="badge badge-yellow">Hazard Zone</span>
+                                </div>
+                                <ul class="list-disc pl-5 text-sm text-gray-700 space-y-2">
+                                    <li>Clearance: 0.1m to 0.5m on each side</li>
+                                    <li>Max Speed: 1.2 m/s (3.9 ft/s)</li>
+                                    <li>Requires enhanced detection system</li>
+                                    <li>Warning signals mandatory</li>
+                                </ul>
+                            </div>
+                            <div class="p-4">
+                                <div class="mb-2">
+                                    <span class="badge badge-red">Restricted Area</span>
+                                </div>
+                                <ul class="list-disc pl-5 text-sm text-gray-700 space-y-2">
+                                    <li>Clearance: Less than 0.1m on each side</li>
+                                    <li>Max Speed: 0.3 m/s (1.0 ft/s)</li>
+                                    <li>Emergency stop device required</li>
+                                    <li>Supervisor approval needed</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-sm text-gray-600">
+                        Note: This calculator provides guidance based on B56.5 standards, but implementation should always be verified by a qualified safety professional.
+                    </p>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Instructions Section -->
+        <section class="card mb-8">
+            <div class="card-header flex justify-between items-center cursor-pointer" id="instructions-header">
+                <h2 class="text-lg font-semibold">How to Use This Calculator</h2>
+                <button id="toggle-instructions" class="p-1 rounded-full hover:bg-gray-100 transition-colors duration-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+            </div>
+            <div class="card-body hidden" id="instructions-content">
+                <div class="mb-6">
+                    <h3 class="section-title">Getting Started</h3>
+                    <ol class="list-decimal pl-5 space-y-3 text-gray-700 mb-4">
+                        <li>
+                            <strong>Select your preferred units</strong> - Choose between metric (meters or millimeters) and imperial (feet or inches) measurement systems.
+                        </li>
+                        <li>
+                            <strong>Specify the traffic direction</strong> - Select either "Single Direction" (for one-way aisles) or "Bidirectional" (for two-way traffic) based on your facility requirements.
+                        </li>
+                        <li>
+                            <strong>Select an AGV model or enter custom values</strong> - You can either choose a predefined AGV model from the dropdown list or select "Custom Configuration" to enter your own values.
+                        </li>
+                        <li>
+                            <strong>Enter required measurements</strong>:
+                            <ul class="list-disc pl-5 mt-2 space-y-1 text-gray-600">
+                                <li><span class="text-gray-800 font-medium">AGV Width</span> - The maximum width of your automated guided vehicle (required)</li>
+                                <li><span class="text-gray-800 font-medium">Payload Width</span> - The width of the load carried by the AGV, if wider than the AGV itself (optional)</li>
+                                <li><span class="text-gray-800 font-medium">AGV Speed</span> - The maximum operating speed of the AGV (required)</li>
+                                <li><span class="text-gray-800 font-medium">Current Aisle Width</span> - Your existing aisle width, to check for compliance (optional)</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Click "Calculate"</strong> to generate the results.
+                        </li>
+                    </ol>
+                </div>
+                
+                <div class="mb-6">
+                    <h3 class="section-title">Understanding the Results</h3>
+                    <p class="text-gray-700 mb-4">
+                        After calculation, the results section will show:
+                    </p>
+                    <ul class="list-disc pl-5 space-y-2 text-gray-700">
+                        <li>
+                            <strong>Effective Width Used</strong> - The greater of AGV width or payload width, which is used for all calculations
+                        </li>
+                        <li>
+                            <strong>Straight Aisle Width</strong> - The minimum recommended aisle width based on ANSI/ITSDF B56.5 standards
+                        </li>
+                        <li>
+                            <strong>Zone Classification</strong> - Non-Restricted Area, Hazard Zone, or Restricted Area, with corresponding maximum speeds
+                        </li>
+                        <li>
+                            <strong>Required Safety Features</strong> - Based on the calculated zone classification
+                        </li>
+                        <li>
+                            <strong>Compliance Status</strong> - If you entered a current aisle width, the calculator will indicate whether it complies with safety standards
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-r-md text-sm">
+                    <p class="text-blue-800 mb-2 font-medium">Safety First</p>
+                    <p class="text-blue-700">
+                        This calculator provides guidance based on ANSI/ITSDF B56.5 standards, but implementation should always be verified by a qualified safety professional. Proper AGV aisle width planning is critical for safe and efficient operations.
+                    </p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+    // Wait for DOM to be fully loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        // AGV models data - Using exact values from reference table
+        const agvModels = [
+            { model: "8TB50A", maxSpeed: 1.80, maxWidth: 1.01 },      // Updated to 1.01m
+            { model: "8HBC40A", maxSpeed: 2.00, maxWidth: 1.01 },     // Updated to 1.01m
+            { model: "M10", maxSpeed: 0.80, maxWidth: 0.37 },
+            { model: "ML2", maxSpeed: 1.80, maxWidth: 0.61 },         // Updated to exact 0.61m
+            { model: "CB18", maxSpeed: 3.00, maxWidth: 1.28 },
+            { model: "Oppent E-Base 7", maxSpeed: 1.50, maxWidth: 0.82 }
+        ];
+
+        // Define the reference widths
+        const vehicleWidths = {
+            "8TB50A": { m: 1.01, mm: 1010, ft: 3.33, inches: 39.92 },
+            "8HBC40A": { m: 1.01, mm: 1010, ft: 3.33, inches: 39.92 },
+            "M10": { m: 0.37, mm: 370, ft: 1.21, inches: 14.57 },
+            "ML2": { m: 0.61, mm: 605.30, ft: 1.99, inches: 23.83 },
+            "CB18": { m: 1.28, mm: 1277.60, ft: 4.19, inches: 50.30 },
+            "Oppent E-Base 7": { m: 0.82, mm: 820, ft: 2.69, inches: 32.28 }
+        };
+
+        // Conversion constants for non-standard values
+        const METERS_TO_MM = 1000;
+        const METERS_TO_FEET = 3.28084;
+        const METERS_TO_INCHES = 39.37;
+        const MPH_TO_MPS = 0.44704;    // Standard conversion for mph to m/s
+        
+        // State variables
+        let currentUnits = 'metric';
+        let currentMetricUnit = 'm';
+        let currentImperialUnit = 'ft';
+        let trafficDirection = 'single';
+        let viewMode = 'desktop';
+
+        // DOM elements
+        const desktopBtn = document.getElementById('desktop-btn');
+        const mobileBtn = document.getElementById('mobile-btn');
+        const metricBtn = document.getElementById('metric-btn');
+        const imperialBtn = document.getElementById('imperial-btn');
+        const metricUnits = document.getElementById('metric-units');
+        const imperialUnits = document.getElementById('imperial-units');
+        const singleBtn = document.getElementById('single-btn');
+        const bidirectionalBtn = document.getElementById('bidirectional-btn');
+        const agvModelSelect = document.getElementById('agv-model');
+        const calculateBtn = document.getElementById('calculate-btn');
+        const resultsSection = document.getElementById('results-section');
+        const calculatorContainer = document.getElementById('calculator-container');
+        
+        // Reference section toggle
+        const referenceHeader = document.getElementById('reference-header');
+        const referenceContent = document.getElementById('reference-content');
+        const toggleReferenceBtn = document.getElementById('toggle-reference');
+        
+        // Add toggle function for instructions section
+        const instructionsHeader = document.getElementById('instructions-header');
+        const instructionsContent = document.getElementById('instructions-content');
+        const toggleInstructionsBtn = document.getElementById('toggle-instructions');
+        
+        // Add toggle function for instructions section
+        instructionsHeader.addEventListener('click', function() {
+            instructionsContent.classList.toggle('hidden');
+            // Change arrow direction
+            const svg = toggleInstructionsBtn.querySelector('svg');
+            if (instructionsContent.classList.contains('hidden')) {
+                svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
+            } else {
+                svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />';
+            }
+        });
+        
+        // Add toggle function for reference section
+        referenceHeader.addEventListener('click', function() {
+            referenceContent.classList.toggle('hidden');
+            // Change arrow direction
+            const svg = toggleReferenceBtn.querySelector('svg');
+            if (referenceContent.classList.contains('hidden')) {
+                svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
+            } else {
+                svg.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />';
+            }
+        });
+
+        // Add event listeners
+        if (desktopBtn) {
+            desktopBtn.addEventListener('click', function() {
+                setViewMode('desktop');
+            });
+        }
+        
+        if (mobileBtn) {
+            mobileBtn.addEventListener('click', function() {
+                setViewMode('mobile');
+            });
+        }
+        
+        metricBtn.addEventListener('click', function() {
+            setUnits('metric');
+        });
+        
+        imperialBtn.addEventListener('click', function() {
+            setUnits('imperial');
+        });
+        
+        document.getElementById('m-btn').addEventListener('click', function() {
+            setMetricUnit('m');
+        });
+        
+        document.getElementById('mm-btn').addEventListener('click', function() {
+            setMetricUnit('mm');
+        });
+        
+        document.getElementById('ft-btn').addEventListener('click', function() {
+            setImperialUnit('ft');
+        });
+        
+        document.getElementById('in-btn').addEventListener('click', function() {
+            setImperialUnit('in');
+        });
+        
+        singleBtn.addEventListener('click', function() {
+            trafficDirection = 'single';
+            singleBtn.classList.add('active');
+            bidirectionalBtn.classList.remove('active');
+            
+            // If results are showing, recalculate
+            if (!resultsSection.classList.contains('hidden')) {
+                calculateAisleWidth();
+            }
+        });
+        
+        bidirectionalBtn.addEventListener('click', function() {
+            trafficDirection = 'bidirectional';
+            bidirectionalBtn.classList.add('active');
+            singleBtn.classList.remove('active');
+            
+            // If results are showing, recalculate
+            if (!resultsSection.classList.contains('hidden')) {
+                calculateAisleWidth();
+            }
+        });
+        
+        agvModelSelect.addEventListener('change', function() {
+            const selectedModel = agvModelSelect.value;
+            const agvWidthInput = document.getElementById('agv-width');
+            const agvSpeedInput = document.getElementById('agv-speed');
+            
+            if (selectedModel === 'custom') {
+                // Enable custom inputs
+                agvWidthInput.disabled = false;
+                agvSpeedInput.disabled = false;
+                
+                // Clear the values
+                agvWidthInput.value = '';
+                agvSpeedInput.value = '';
+                
+                // Add required attribute
+                agvWidthInput.setAttribute('required', '');
+                agvSpeedInput.setAttribute('required', '');
+                
+                // Focus on the first input field
+                agvWidthInput.focus();
+            } else {
+                // Get the model data
+                const model = agvModels.find(function(m) { 
+                    return m.model === selectedModel;
+                });
+                
+                if (model) {
+                    // Disable the input fields
+                    agvWidthInput.disabled = true;
+                    agvSpeedInput.disabled = true;
+                    
+                    let displayWidth = model.maxWidth; // Default is meters
+                    let displaySpeed = model.maxSpeed; // Default is m/s
+                    
+                    // Check if we need to convert based on current units
+                    if (currentUnits === 'metric') {
+                        if (currentMetricUnit === 'mm') {
+                            displayWidth = model.maxWidth * METERS_TO_MM;
+                        }
+                    } else {
+                        if (currentImperialUnit === 'ft') {
+                            displayWidth = model.maxWidth * METERS_TO_FEET;
+                            displaySpeed = model.maxSpeed * METERS_TO_FEET;
+                        } else {
+                            displayWidth = model.maxWidth * METERS_TO_INCHES;
+                            displaySpeed = model.maxSpeed * METERS_TO_INCHES;
+                        }
+                    }
+                    
+                    // Set the input values
+                    agvWidthInput.value = displayWidth.toFixed(2);
+                    agvSpeedInput.value = displaySpeed.toFixed(2);
+                }
+            }
+        });
+        
+        // Add clear button functionality
+        document.getElementById('clear-btn').addEventListener('click', function() {
+            // Clear all input fields
+            document.getElementById('agv-width').value = '';
+            document.getElementById('payload-width').value = '';
+            document.getElementById('agv-speed').value = '';
+            document.getElementById('current-aisle-width').value = '';
+            
+            // Reset model selector
+            document.getElementById('agv-model').value = 'custom';
+            
+            // Hide results section
+            resultsSection.classList.add('hidden');
+        });
+        
+        calculateBtn.addEventListener('click', calculateAisleWidth);
+
+        // Set view mode (desktop or mobile)
+        function setViewMode(mode) {
+            viewMode = mode;
+            
+            if (mode === 'desktop') {
+                if (desktopBtn) {
+                    desktopBtn.classList.add('active');
+                    mobileBtn.classList.remove('active');
+                }
+                
+                // Desktop layout adjustments
+                document.body.classList.remove('mobile-view');
+            } else {
+                if (mobileBtn) {
+                    mobileBtn.classList.add('active');
+                    desktopBtn.classList.remove('active');
+                }
+                
+                // Mobile layout adjustments
+                document.body.classList.add('mobile-view');
+            }
+        }
+
+        // Set units (metric or imperial)
+        function setUnits(units) {
+            if (units === currentUnits) return;
+            
+            if (units === 'metric') {
+                metricBtn.classList.add('active');
+                imperialBtn.classList.remove('active');
+                metricUnits.classList.remove('hidden');
+                imperialUnits.classList.add('hidden');
+            } else {
+                imperialBtn.classList.add('active');
+                metricBtn.classList.remove('active');
+                imperialUnits.classList.remove('hidden');
+                metricUnits.classList.add('hidden');
+            }
+            
+            // Store current internal values in meters before conversion
+            const inputFields = [
+                { id: 'agv-width', isSpeed: false },
+                { id: 'payload-width', isSpeed: false },
+                { id: 'current-aisle-width', isSpeed: false },
+                { id: 'agv-speed', isSpeed: true }
+            ];
+            
+            // Get current values in meters
+            const currentValues = {};
+            inputFields.forEach(function(field) {
+                const element = document.getElementById(field.id);
+                if (element && element.value) {
+                    if (field.isSpeed) {
+                        currentValues[field.id] = convertSpeedFromDisplayToMps(parseFloat(element.value), currentUnits);
+                    } else {
+                        currentValues[field.id] = convertFromDisplayToMeters(parseFloat(element.value), currentUnits);
+                    }
+                }
+            });
+            
+            const oldUnits = currentUnits;
+            currentUnits = units;
+            
+            updateUnitLabels();
+            
+            // Update inputs with converted values
+            inputFields.forEach(function(field) {
+                const element = document.getElementById(field.id);
+                if (element && currentValues[field.id] !== undefined) {
+                    if (field.isSpeed) {
+                        element.value = convertSpeedToDisplayValue(currentValues[field.id]);
+                    } else {
+                        element.value = convertToDisplayValue(currentValues[field.id]);
+                    }
+                }
+            });
+            
+            // If a model is selected, update its displayed values
+            const selectedModel = agvModelSelect.value;
+            if (selectedModel !== 'custom') {
+                // Trigger change event to update displayed values based on new units
+                const changeEvent = new Event('change');
+                agvModelSelect.dispatchEvent(changeEvent);
+            }
+            
+            // If results are showing, recalculate with the new units
+            if (!resultsSection.classList.contains('hidden')) {
+                calculateAisleWidth();
+            }
+        }
+        
+        // Set metric unit function
+        function setMetricUnit(unit) {
+            if (unit === currentMetricUnit) return;
+            
+            if (unit === 'm') {
+                document.getElementById('m-btn').classList.add('active');
+                document.getElementById('mm-btn').classList.remove('active');
+            } else {
+                document.getElementById('mm-btn').classList.add('active');
+                document.getElementById('m-btn').classList.remove('active');
+            }
+            
+            // Store current internal values in meters before conversion
+            const inputFields = [
+                { id: 'agv-width', isSpeed: false },
+                { id: 'payload-width', isSpeed: false },
+                { id: 'current-aisle-width', isSpeed: false },
+                { id: 'agv-speed', isSpeed: true }
+            ];
+            
+            // Get current values in meters
+            const currentValues = {};
+            inputFields.forEach(function(field) {
+                const element = document.getElementById(field.id);
+                if (element && element.value) {
+                    if (field.isSpeed) {
+                        currentValues[field.id] = convertSpeedFromDisplayToMps(parseFloat(element.value), currentUnits);
+                    } else {
+                        currentValues[field.id] = convertFromDisplayToMeters(parseFloat(element.value), currentUnits);
+                    }
+                }
+            });
+            
+            currentMetricUnit = unit;
+            updateUnitLabels();
+            
+            // Update inputs with converted values
+            inputFields.forEach(function(field) {
+                const element = document.getElementById(field.id);
+                if (element && currentValues[field.id] !== undefined) {
+                    if (field.isSpeed) {
+                        element.value = convertSpeedToDisplayValue(currentValues[field.id]);
+                    } else {
+                        element.value = convertToDisplayValue(currentValues[field.id]);
+                    }
+                }
+            });
+            
+            // If results are showing, recalculate with the new units
+            if (!resultsSection.classList.contains('hidden')) {
+                calculateAisleWidth();
+            }
+        }
+        
+        function setImperialUnit(unit) {
+            if (unit === currentImperialUnit) return;
+            
+            if (unit === 'ft') {
+                document.getElementById('ft-btn').classList.add('active');
+                document.getElementById('in-btn').classList.remove('active');
+            } else {
+                document.getElementById('in-btn').classList.add('active');
+                document.getElementById('ft-btn').classList.remove('active');
+            }
+            
+            // Store current internal values in meters before conversion
+            const inputFields = [
+                { id: 'agv-width', isSpeed: false },
+                { id: 'payload-width', isSpeed: false },
+                { id: 'current-aisle-width', isSpeed: false },
+                { id: 'agv-speed', isSpeed: true }
+            ];
+            
+            // Get current values in meters
+            const currentValues = {};
+            inputFields.forEach(function(field) {
+                const element = document.getElementById(field.id);
+                if (element && element.value) {
+                    if (field.isSpeed) {
+                        currentValues[field.id] = convertSpeedFromDisplayToMps(parseFloat(element.value), currentUnits);
+                    } else {
+                        currentValues[field.id] = convertFromDisplayToMeters(parseFloat(element.value), currentUnits);
+                    }
+                }
+            });
+            
+            currentImperialUnit = unit;
+            updateUnitLabels();
+            
+            // Update inputs with converted values
+            inputFields.forEach(function(field) {
+                const element = document.getElementById(field.id);
+                if (element && currentValues[field.id] !== undefined) {
+                    if (field.isSpeed) {
+                        element.value = convertSpeedToDisplayValue(currentValues[field.id]);
+                    } else {
+                        element.value = convertToDisplayValue(currentValues[field.id]);
+                    }
+                }
+            });
+            
+            // If results are showing, recalculate with the new units
+            if (!resultsSection.classList.contains('hidden')) {
+                calculateAisleWidth();
+            }
+        }
+        
+        // Update unit labels
+        function updateUnitLabels() {
+            if (currentUnits === 'metric') {
+                document.getElementById('width-unit').textContent = `(${currentMetricUnit})`;
+                document.getElementById('payload-width-unit').textContent = `(${currentMetricUnit})`;
+                document.getElementById('current-aisle-unit').textContent = `(${currentMetricUnit})`;
+                document.getElementById('speed-unit').textContent = `(${currentMetricUnit}/s)`;
+            } else {
+                document.getElementById('width-unit').textContent = `(${currentImperialUnit})`;
+                document.getElementById('payload-width-unit').textContent = `(${currentImperialUnit})`;
+                document.getElementById('current-aisle-unit').textContent = `(${currentImperialUnit})`;
+                document.getElementById('speed-unit').textContent = `(${currentImperialUnit}/s)`;
+            }
+        }
+        
+        // Convert from display value to meters
+        function convertFromDisplayToMeters(displayValue, fromUnits) {
+            if (isNaN(displayValue)) return 0;
+            
+            const unitsToUse = fromUnits || currentUnits;
+            
+            if (unitsToUse === 'metric') {
+                if (currentMetricUnit === 'mm') {
+                    return displayValue / METERS_TO_MM;
+                }
+                return displayValue; // already in meters
+            } else {
+                if (currentImperialUnit === 'in') {
+                    return displayValue / METERS_TO_INCHES;
+                }
+                return displayValue / METERS_TO_FEET; // feet to meters
+            }
+        }
+        
+        // Convert meters to display value
+        function convertToDisplayValue(valueInMeters) {
+            if (isNaN(valueInMeters)) return '';
+            
+            if (currentUnits === 'metric') {
+                if (currentMetricUnit === 'mm') {
+                    return (valueInMeters * METERS_TO_MM).toFixed(2);
+                }
+                return valueInMeters.toFixed(2); // meters with 2 decimals
+            } else {
+                if (currentImperialUnit === 'in') {
+                    return (valueInMeters * METERS_TO_INCHES).toFixed(2);
+                }
+                return (valueInMeters * METERS_TO_FEET).toFixed(2); // feet with 2 decimals
+            }
+        }
+        
+        // Convert speed from display to m/s
+        function convertSpeedFromDisplayToMps(displaySpeed, fromUnits) {
+            if (isNaN(displaySpeed)) return 0;
+            
+            const unitsToUse = fromUnits || currentUnits;
+            
+            if (unitsToUse === 'imperial') {
+                if (currentImperialUnit === 'ft') {
+                    return displaySpeed * 0.3048; // ft/s to m/s
+                } else {
+                    return displaySpeed * 0.0254; // in/s to m/s
+                }
+            } else {
+                if (currentMetricUnit === 'mm') {
+                    return displaySpeed / 1000; // mm/s to m/s
+                }
+                return displaySpeed; // already in m/s
+            }
+        }
+        
+        // Convert speed from m/s to display
+        function convertSpeedToDisplayValue(speedInMps) {
+            if (isNaN(speedInMps)) return '';
+            
+            if (currentUnits === 'imperial') {
+                if (currentImperialUnit === 'ft') {
+                    return (speedInMps / 0.3048).toFixed(2); // m/s to ft/s
+                } else {
+                    return (speedInMps / 0.0254).toFixed(2); // m/s to in/s
+                }
+            } else {
+                if (currentMetricUnit === 'mm') {
+                    return (speedInMps * 1000).toFixed(2); // m/s to mm/s
+                }
+                return speedInMps.toFixed(2); // already in m/s
+            }
+        }
+        
+        // Format value with unit for display
+        function formatValueWithUnit(valueInMeters) {
+            if (currentUnits === 'metric') {
+                if (currentMetricUnit === 'mm') {
+                    return (valueInMeters * METERS_TO_MM).toFixed(2) + ' mm';
+                }
+                return valueInMeters.toFixed(2) + ' m';
+            } else {
+                if (currentImperialUnit === 'in') {
+                    return (valueInMeters * METERS_TO_INCHES).toFixed(2) + ' in';
+                }
+                return (valueInMeters * METERS_TO_FEET).toFixed(2) + ' ft';
+            }
+        }
+        
+        // Format speed with unit for display
+        function formatSpeedWithUnit(speedInMps) {
+            if (currentUnits === 'imperial') {
+                if (currentImperialUnit === 'ft') {
+                    return (speedInMps / 0.3048).toFixed(2) + ' ft/s';
+                } else {
+                    return (speedInMps / 0.0254).toFixed(2) + ' in/s';
+                }
+            } else {
+                if (currentMetricUnit === 'mm') {
+                    return (speedInMps * 1000).toFixed(2) + ' mm/s';
+                } else {
+                    return speedInMps.toFixed(2) + ' m/s';
+                }
+            }
+        }
+        
+        // Calculate aisle width
+        function calculateAisleWidth() {
+            // Get input values
+            const agvWidthInput = document.getElementById('agv-width').value;
+            const payloadWidthInput = document.getElementById('payload-width').value;
+            const agvSpeedInput = document.getElementById('agv-speed').value;
+            const currentAisleWidthInput = document.getElementById('current-aisle-width').value;
+            
+            if (!agvWidthInput || !agvSpeedInput) {
+                alert('Please enter values for AGV width and speed');
+                return;
+            }
+            
+            // Convert display values to meters (internal units)
+            const agvWidth = convertFromDisplayToMeters(parseFloat(agvWidthInput));
+            const payloadWidth = payloadWidthInput ? 
+                convertFromDisplayToMeters(parseFloat(payloadWidthInput)) : 0;
+            const agvSpeed = convertSpeedFromDisplayToMps(parseFloat(agvSpeedInput));
+            const currentAisleWidth = currentAisleWidthInput ? 
+                convertFromDisplayToMeters(parseFloat(currentAisleWidthInput)) : 0;
+            
+            // Validate values
+            if (agvWidth <= 0 || agvSpeed <= 0) {
+                alert('Please enter positive values for AGV width and speed');
+                return;
+            }
+            
+            // Determine the effective width (using the larger of AGV or payload width)
+            const effectiveWidth = Math.max(agvWidth, payloadWidth);
+            
+            // Calculate based on B56.5
+            const minClearance = 0.5; // 0.5 meters per B56.5
+            let aisleWidth = effectiveWidth + (2 * minClearance);
+            
+            // If bidirectional traffic, adjust width
+            if (trafficDirection === 'bidirectional') {
+                aisleWidth = (2 * effectiveWidth) + (2 * minClearance);
+            }
+            
+            // Calculate clearance
+            const clearance = trafficDirection === 'bidirectional' ? 
+                (aisleWidth - (2 * effectiveWidth)) / 2 : 
+                (aisleWidth - effectiveWidth) / 2;
+            
+            // Determine zone classification
+            let zoneClass = '';
+            let maxSpeed = 0;
+            let safetyFeatures = [];
+            
+            if (clearance >= 0.5) {
+                // Non-Restricted Area
+                zoneClass = 'Non-Restricted Area';
+                maxSpeed = agvSpeed;
+                safetyFeatures = [
+                    'Standard object detection system',
+                    'Normal operational procedures'
+                ];
+            } else if (clearance >= 0.1) {
+                // Hazard Zone
+                zoneClass = 'Hazard Zone';
+                maxSpeed = 1.2; // m/s
+                safetyFeatures = [
+                    'Enhanced detection system required',
+                    'Speed limited to 1.2 m/s maximum',
+                    'Audible warning signal before entering zone',
+                    'Visual indicators when operating in this zone'
+                ];
+            } else {
+                // Restricted Area
+                zoneClass = 'Restricted Area';
+                maxSpeed = 0.3; // m/s
+                safetyFeatures = [
+                    'Speed strictly limited to 0.3 m/s maximum',
+                    'Emergency stop device within 600mm reach',
+                    'Audible warning signal before and during operation',
+                    'Visual indicators when operating in this zone',
+                    'Special authorization required for operation'
+                ];
+            }
+            
+            // Calculate min widths for each zone and traffic type
+            // Single direction
+            const nonRestrictedWidth = effectiveWidth + 1.0;
+            const hazardZoneWidth = effectiveWidth + 0.5;
+            const restrictedAreaWidth = effectiveWidth + 0.1;
+            
+            // Bidirectional
+            const bidirectionalNonRestrictedWidth = (2 * effectiveWidth) + 1.0;
+            const bidirectionalHazardZoneWidth = (2 * effectiveWidth) + 0.5;
+            const bidirectionalRestrictedAreaWidth = (2 * effectiveWidth) + 0.1;
+            
+            // Display results
+            document.getElementById('agv-width-result').textContent = formatValueWithUnit(agvWidth);
+            document.getElementById('payload-width-result').textContent = payloadWidth ? formatValueWithUnit(payloadWidth) : 'Not specified';
+            document.getElementById('total-width-result').textContent = formatValueWithUnit(effectiveWidth);
+            document.getElementById('aisle-width-result').textContent = formatValueWithUnit(aisleWidth);
+            
+            // Display min requirements
+            document.getElementById('non-restricted-width').textContent = formatValueWithUnit(nonRestrictedWidth);
+            document.getElementById('hazard-zone-width').textContent = formatValueWithUnit(hazardZoneWidth);
+            document.getElementById('restricted-area-width').textContent = formatValueWithUnit(restrictedAreaWidth);
+            
+            // Display bidirectional min requirements
+            document.getElementById('bidirectional-non-restricted-width').textContent = formatValueWithUnit(bidirectionalNonRestrictedWidth);
+            document.getElementById('bidirectional-hazard-zone-width').textContent = formatValueWithUnit(bidirectionalHazardZoneWidth);
+            document.getElementById('bidirectional-restricted-area-width').textContent = formatValueWithUnit(bidirectionalRestrictedAreaWidth);
+            
+            // Display safety features
+            const featuresList = document.getElementById('required-features');
+            featuresList.innerHTML = '';
+            safetyFeatures.forEach(function(feature) {
+                const li = document.createElement('li');
+                li.className = 'text-sm text-gray-700';
+                li.textContent = feature;
+                featuresList.appendChild(li);
+            });
+            
+            // Check compatibility
+            const compatibilityStatus = document.getElementById('compatibility-status');
+            if (currentAisleWidth > 0 && currentAisleWidth <= effectiveWidth) {
+                // Aisle width is less than or equal to vehicle width - non-compatible
+                compatibilityStatus.classList.remove('hidden');
+            } else {
+                compatibilityStatus.classList.add('hidden');
+            }
+            
+            // Check compliance
+            const complianceStatus = document.getElementById('compliance-status');
+            if (currentAisleWidth > 0 && currentAisleWidth > effectiveWidth) {
+                let zoneMessage = '';
+                let zoneClass = '';
+                
+                // Set minimum widths based on traffic direction
+                const nonRestrictedMinWidth = trafficDirection === 'bidirectional' ? 
+                    bidirectionalNonRestrictedWidth : nonRestrictedWidth;
+                const hazardZoneMinWidth = trafficDirection === 'bidirectional' ? 
+                    bidirectionalHazardZoneWidth : hazardZoneWidth;
+                const restrictedAreaMinWidth = trafficDirection === 'bidirectional' ? 
+                    bidirectionalRestrictedAreaWidth : restrictedAreaWidth;
+                
+                if (currentAisleWidth >= nonRestrictedMinWidth) {
+                    // Falls in Non-Restricted Area
+                    zoneMessage = `
+                        <div class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span class="font-medium">Current aisle width falls in <span class="text-success font-semibold">Non-Restricted Area</span> zone</span>
+                        </div>
+                    `;
+                    zoneClass = 'alert alert-success';
+                } else if (currentAisleWidth >= hazardZoneMinWidth) {
+                    // Falls in Hazard Zone
+                    zoneMessage = `
+                        <div class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-warning" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span class="font-medium">Current aisle width falls in <span class="text-warning font-semibold">Hazard Zone</span> - Speed must be limited to 1.2 m/s</span>
+                        </div>
+                    `;
+                    zoneClass = 'alert alert-warning';
+                } else if (currentAisleWidth >= restrictedAreaMinWidth) {
+                    // Falls in Restricted Area
+                    zoneMessage = `
+                        <div class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-danger" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            <span class="font-medium">Current aisle width falls in <span class="text-danger font-semibold">Restricted Area</span> - Speed must be limited to 0.3 m/s</span>
+                        </div>
+                    `;
+                    zoneClass = 'alert alert-danger';
+                } else {
+                    // Below restricted area minimum
+                    zoneMessage = `
+                        <div class="flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                            <span class="font-medium">Non-Compatible - Current aisle width does not meet minimum safety requirements</span>
+                        </div>
+                    `;
+                    zoneClass = 'alert alert-danger';
+                }
+                
+                complianceStatus.innerHTML = zoneMessage;
+                complianceStatus.className = zoneClass + ' mb-6';
+                complianceStatus.classList.remove('hidden');
+            } else {
+                complianceStatus.classList.add('hidden');
+            }
+            
+            // Hide results section briefly to trigger animation
+            resultsSection.classList.add('hidden');
+            
+            // Show results section with animation after a brief delay
+            setTimeout(function() {
+                resultsSection.classList.remove('hidden');
+                resultsSection.classList.add('fade-in');
+                
+                // Apply mobile-specific classes if on mobile
+                if (window.innerWidth < 768) {
+                    // Apply mobile-specific classes
+                    const tableCells = document.querySelectorAll('.grid-cols-3');
+                    tableCells.forEach(cell => {
+                        cell.classList.add('mobile-grid');
+                        
+                        // Make sure each row is properly spaced on mobile
+                        const childDivs = cell.querySelectorAll(':scope > div');
+                        childDivs.forEach(div => {
+                            div.classList.add('mobile-cell');
+                        });
+                    });
+                    
+                    // Adjust result cards for better mobile layout
+                    const resultCards = document.querySelectorAll('.result-card');
+                    resultCards.forEach(card => {
+                        card.classList.add('mobile-result-card');
+                    });
+                }
+                
+                // Scroll to results for mobile view
+                if (viewMode === 'mobile') {
+                    resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 100);
+        }
+        
+        // Listen for window resize to automatically switch between views
+        window.addEventListener('resize', function() {
+            if (window.innerWidth < 768 && viewMode !== 'mobile') {
+                setViewMode('mobile');
+            } else if (window.innerWidth >= 768 && viewMode !== 'desktop') {
+                setViewMode('desktop');
+            }
+            
+            // Apply mobile classes when needed
+            if (window.innerWidth < 768 && !resultsSection.classList.contains('hidden')) {
+                // Apply mobile-specific classes
+                const tableCells = document.querySelectorAll('.grid-cols-3');
+                tableCells.forEach(cell => {
+                    cell.classList.add('mobile-grid');
+                    
+                    const childDivs = cell.querySelectorAll(':scope > div');
+                    childDivs.forEach(div => {
+                        div.classList.add('mobile-cell');
+                    });
+                });
+                
+                const resultCards = document.querySelectorAll('.result-card');
+                resultCards.forEach(card => {
+                    card.classList.add('mobile-result-card');
+                });
+            }
+        });
+        
+        // Initialize
+        updateUnitLabels();
+        
+        // Initial state - default to first model
+        agvModelSelect.value = agvModels[0].model;
+        // Trigger change event to set initial values
+        const changeEvent = new Event('change');
+        agvModelSelect.dispatchEvent(changeEvent);
+        
+        // Check if it's a mobile device and auto-switch to mobile view
+        if (window.innerWidth < 768) {
+            setViewMode('mobile');
+        } else {
+            setViewMode('desktop');
+        }
+    });
+    </script>
+</body>
+</html>
