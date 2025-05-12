@@ -1,0 +1,2000 @@
+{/* Add help tooltip for advanced params */}
+            <div className="mt-3 p-2 bg-blue-50 border-l-4 border-blue-300 rounded">
+              <div className="text-xs text-blue-800">
+                <span className="font-medium">New Feature:</span> Turn counts, acceleration, and deceleration are now considered in travel time calculations for more accurate AGV fleet sizing.
+              </div>
+            </div>  // Calculate travel time considering acceleration, deceleration, and turns
+  const calculateTravelTime = (distance, maxSpeed, acceleration, deceleration, turnCount, turnTime) => {
+    // Handle invalid inputs with sensible defaults
+    distance = Math.max(0.1, parseFloat(distance) || 0.1);  // Minimum 0.1m distance
+    maxSpeed = Math.max(0.1, parseFloat(maxSpeed) || 0.5);  // Default to 0.5 m/s if missing
+    acceleration = Math.max(0.1, parseFloat(acceleration) || 0.3);  // Default to 0.3 m/s² if missing
+    deceleration = Math.max(0.1, parseFloat(deceleration) || 0.4);  // Default to 0.4 m/s² if missing
+    turnCount = Math.max(0, parseInt(turnCount) || 0);  // Default to 0 turns if missing
+    turnTime = Math.max(0, parseFloat(turnTime) || 3);  // Default to 3 seconds per turn if missing
+    
+    // Calculate acceleration distance and time - handle special cases
+    let accelerationDistance, accelerationTime;
+    const fullAccelerationDistance = Math.pow(maxSpeed, 2) / (2 * acceleration);
+    
+    // For very short distances, we might not reach full speed
+    if (distance <= 2 * fullAccelerationDistance) {
+      // We won't reach max speed, calculate the peak speed we'll reach
+      const peakSpeed = Math.sqrt(distance * acceleration * deceleration / (acceleration + deceleration));
+      accelerationDistance = Math.pow(peakSpeed, 2) / (2 * acceleration);
+      accelerationTime = peakSpeed / acceleration;
+      
+      // Time for deceleration
+      const decelerationDistance = distance - accelerationDistance;
+      const decelerationTime = Math.sqrt(2 * decelerationDistance / deceleration);
+      
+      return {
+        totalMinutes: (accelerationTime + decelerationTime) / 60 + (turnCount * turnTime) / 60,
+        accelerationMinutes: accelerationTime / 60,
+        constantSpeedMinutes: 0,
+        decelerationMinutes: decelerationTime / 60,
+        turningMinutes: (turnCount * turnTime) / 60
+      };
+    } else {
+      // Normal case - we reach max speed
+      accelerationDistance = fullAccelerationDistance;
+      accelerationTime = maxSpeed / acceleration;
+      
+      // Calculate time spent decelerating
+      const decelerationDistance = Math.pow(maxSpeed, 2) / (2 * deceleration);
+      const decelerationTime = maxSpeed / deceleration;
+      
+      // Calculate remaining distance at constant speed
+      const constantSpeedDistance = distance - accelerationDistance - decelerationDistance;
+      
+      // Calculate time at constant speed
+      const constantSpeedTime = constantSpeedDistance > 0 ? constantSpeedDistance / maxSpeed : 0;
+      
+      //                      <h3 className="text-lg font-medium" style={{ color: RAL_5002.primary }}>Travel Time Analysis</h3>
+                      
+                      {connections.filter(c => c.requiredVehicles > 0 && c.travelTimeDetails).map(conn => {
+                        // Get vehicle
+                        const vehicle = defaultVehicleTypes[conn.vehicleType] || {};
+                        
+                        // Get travel time details, handle missing data gracefully
+                        const details = conn.travelTimeDetails || {
+                          accelerationMinutes: 0,
+                          constantSpeedMinutes: 0,
+                          decelerationMinutes: 0,
+                          turningMinutes: 0
+                        };
+                        
+                        // Calculate total for the progress bar
+                        const totalTime = conn.totalTripTimeMinutes || 1;
+                        const waitTime = totalTime - details.accelerationMinutes - 
+                                        details.constantSpeedMinutes - 
+                                        details.decelerationMinutes - 
+                                        details.turningMinutes;
+                        
+                        return (
+                          <div key={`time-${conn.id}`} className="bg-gray-50 p-3 rounded mb-3">
+                            <div className="font-medium text-sm mb-1">
+                              {conn.from} → {conn.to} ({displayDistance(conn.distance)} {getDistanceUnit()}, {conn.turnCount || 0} turns)
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                              <div>Acceleration: {(details.accelerationMinutes * 60).toFixed(1)} sec</div>
+                              <div>Constant Speed: {(details.constantSpeedMinutes * 60).toFixed(1)} sec</div>
+                              <div>Deceleration: {(details.decelerationMinutes * 60).toFixed(1)} sec</div>
+                              <div>Turning: {(details.turningMinutes * 60).toFixed(1)} sec</div>
+                              <div className="col-span-2 mt-1 pt-1 border-t border-gray-200">
+                                <span className="font-medium">Total Trip Time:</span> {conn.totalTripTimeMinutes?.toFixed(2) || '-'} min
+                                <div className="w-full bg-gray-200 rounded-full h-1.5 mt-1">
+                                  <div className="flex">
+                                    <div className="bg-blue-400 h-1.5 rounded-l" style={{ width: `${Math.max(1, (details.accelerationMinutes / totalTime) * 100)}%` }}></div>
+                                    <div className="bg-green-400 h-1.5" style={{ width: `${Math.max(1, (details.constantSpeedMinutes / totalTime) * 100)}%` }}></div>
+                                    <div className="bg-yellow-400 h-1.5" style={{ width: `${Math.max(1, (details.decelerationMinutes / totalTime) * 100)}%` }}></div>
+                                    <div className="bg-red-400 h-1.5" style={{ width: `${Math.max(1, (details.turningMinutes / totalTime) * 100)}%` }}></div>
+                                    <div className="bg-gray-400 h-1.5 rounded-r" style={{ width: `${Math.max(1, (waitTime / totalTime) * 100)}%` }}></div>
+                                  </div>
+                                </div>
+                                <div className="flex text-xs mt-1 justify-between">
+                                  <span className="text-blue-600">Accel</span>
+                                  <span className="text-green-600">Cruise</span>
+                                  <span className="text-yellow-600">Decel</span>
+                                  <span className="text-red-600">Turns</span>
+                                  <span className="text-gray-600">Wait</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>  // Calculate travel time considering acceleration, deceleration, and turns
+  const calculateTravelTime = (distance, maxSpeed, acceleration, deceleration, turnCount, turnTime) => {
+    // Handle invalid inputs with sensible defaults
+    distance = Math.max(0.1, parseFloat(distance) || 0.1);  // Minimum 0.1m distance
+    maxSpeed = Math.max(0.1, parseFloat(maxSpeed) || 0.5);  // Default to 0.5 m/s if missing
+    acceleration = Math.max(0.1, parseFloat(acceleration) || 0.3);  // Default to 0.3 m/s² if missing
+    deceleration = Math.max(0.1, parseFloat(deceleration) || 0.4);  // Default to 0.4 m/s² if missing
+    turnCount = Math.max(0, parseInt(turnCount) || 0);  // Default to 0 turns if missing
+    turnTime = Math.max(0, parseFloat(turnTime) || 3);  // Default to 3 seconds per turn if missing
+    
+    // Calculate acceleration distance and time - handle special cases
+    let accelerationDistance, accelerationTime;
+    const fullAccelerationDistance = Math.pow(maxSpeed, 2) / (2 * acceleration);
+    
+    // For very short distances, we might not reach full speed
+    if (distance <= 2 * fullAccelerationDistance) {
+      // We won't reach max speed, calculate the peak speed we'll reach
+      const peakSpeed = Math.sqrt(distance * acceleration * deceleration / (acceleration + deceleration));
+      accelerationDistance = Math.pow(peakSpeed, 2) / (2 * acceleration);
+      accelerationTime = peakSpeed / acceleration;
+      
+      // Time for deceleration
+      const decelerationDistance = distance - accelerationDistance;
+      const decelerationTime = Math.sqrt(2 * decelerationDistance / deceleration);
+      
+      return {
+        totalMinutes: (accelerationTime + decelerationTime) / 60 + (turnCount * turnTime) / 60,
+        accelerationMinutes: accelerationTime / 60,
+        constantSpeedMinutes: 0,
+        decelerationMinutes: decelerationTime / 60,
+        turningMinutes: (turnCount * turnTime) / 60
+      };
+    } else {
+      // Normal case - we reach max speed
+      accelerationDistance = fullAccelerationDistance;
+      accelerationTime = maxSpeed / acceleration;
+      
+      // Calculate time spent decelerating
+      const decelerationDistance = Math.pow(maxSpeed, 2) / (2 * deceleration);
+      const decelerationTime = maxSpeed / deceleration;
+      
+      // Calculate remaining distance at constant speed
+      const constantSpeedDistance = distance - accelerationDistance - decelerationDistance;
+      
+      // Calculate time at constant speed
+      const constantSpeedTime = constantSpeedDistance > 0 ? constantSpeedDistance / maxSpeed : 0;
+      
+      // Calculate time for turning
+      const turningTime = (turnCount * turnTime) / 60; // convert to minutes
+      
+      // Total travel time in minutes
+      const totalTravelTime = (accelerationTime + constantSpeedTime + decelerationTime) / 60 + turningTime;
+      
+      return {
+        totalMinutes: totalTravelTime,
+        accelerationMinutes: accelerationTime / 60,
+        constantSpeedMinutes: constantSpeedTime / 60,
+        decelerationMinutes: decelerationTime / 60,
+        turningMinutes: turningTime
+      };
+    }
+  };                                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                  {connection.turnCount || 0} turns
+                                </td>                          <td className="px-4 py-2">
+                            <div className="flex items-center">
+                              <input
+                                type="number"
+                                value={connection.turnCount || 0}
+                                onChange={(e) => {
+                                  const value = e.target.value === '' ? 0 : parseInt(e.target.value);
+                                  updateConnection(connection.id, 'turnCount', value);
+                                }}
+                                className="w-full p-1 border rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="# of turns"
+                                min="0"
+                                step="1"
+                              />
+                            </div>
+                          </td>import React, { useState, useEffect } from 'react';
+
+// RAL 5002 color scheme
+const RAL_5002 = {
+  primary: "#1e3a4f", // RAL 5002 Ultramarine blue
+  secondary: "#2a4f69",
+  light: "#3c6d8f",
+  extraLight: "#d8e6f0",
+  dark: "#162a39",
+  text: "#ffffff",
+  accent: "#41839c"
+};
+
+// Flow Visualizer Component
+const FlowVisualizer = ({ connections }) => {
+  // Only show connections with data
+  const validConnections = connections.filter(conn => 
+    conn.from && conn.to && parseFloat(conn.throughput) > 0
+  );
+  
+  if (validConnections.length === 0) {
+    return (
+      <div className="text-center p-6 bg-gray-50 rounded-lg">
+        <p className="text-gray-500">Add connections to see the flow visualization</p>
+      </div>
+    );
+  }
+  
+  // Find all unique locations
+  const locations = [...new Set([
+    ...validConnections.map(conn => conn.from),
+    ...validConnections.map(conn => conn.to)
+  ])];
+  
+  return (
+    <div className="bg-white p-4 rounded-lg border border-gray-200">
+      <h3 className="text-lg font-semibold mb-4" style={{ color: RAL_5002.primary }}>Material Flow Visualization</h3>
+      <div className="overflow-x-auto">
+        <div className="min-w-max" style={{ minHeight: '250px' }}>
+          {validConnections.map((conn, index) => (
+            <div key={`flow-${conn.id}`} className="flex items-center mb-6 relative">
+              {/* From location */}
+              <div 
+                className="rounded-lg p-3 text-center min-w-32 shadow-md"
+                style={{ backgroundColor: RAL_5002.primary, color: RAL_5002.text }}
+              >
+                <span className="font-medium">{conn.from}</span>
+              </div>
+              
+              {/* Arrow with info */}
+              <div className="flex-1 mx-4 relative">
+                <div className="h-1 bg-gray-300 w-full absolute top-1/2 transform -translate-y-1/2"></div>
+                <div 
+                  className="h-3 w-3 transform rotate-45 absolute right-0 top-1/2 -translate-y-1/2 border-t-2 border-r-2"
+                  style={{ borderColor: RAL_5002.secondary }}
+                ></div>
+                <div 
+                  className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 px-3 py-1 rounded-full text-xs font-medium"
+                  style={{ backgroundColor: RAL_5002.extraLight, color: RAL_5002.dark }}
+                >
+                  <div className="whitespace-nowrap">
+                    <span className="mr-2">{conn.throughput} trips/hr</span>
+                    {conn.requiredVehicles > 0 && (
+                      <span className="font-bold">{conn.requiredVehicles} AGVs</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* To location */}
+              <div 
+                className="rounded-lg p-3 text-center min-w-32 shadow-md"
+                style={{ backgroundColor: RAL_5002.secondary, color: RAL_5002.text }}
+              >
+                <span className="font-medium">{conn.to}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AGVFleetCalculator = () => {
+  // Vehicle specifications with built-in parameters
+  const defaultVehicleTypes = {
+    M10: {
+      name: "M10 Tug AV",
+      maxPayload: 1000,
+      maxSpeed: 0.83,
+      acceleration: 0.3,    // m/s²
+      deceleration: 0.4,    // m/s²
+      turnTime: 3.5,        // seconds per 90-degree turn
+      batteryLife: 480,
+      chargeTime: 40,
+      opportunisticChargeRate: 15,
+      recommendedWaitTime: 3,
+      recommendedEfficiency: 65,
+      description: "Designed for pallet transportation"
+    },
+    ML2: {
+      name: "ML2 Mini Load AV",
+      maxPayload: 200,
+      maxSpeed: 1.8,
+      acceleration: 0.5,    // m/s²
+      deceleration: 0.6,    // m/s²
+      turnTime: 2.8,        // seconds per 90-degree turn
+      batteryLife: 600,
+      chargeTime: 30,
+      opportunisticChargeRate: 20,
+      recommendedWaitTime: 5,
+      recommendedEfficiency: 80,
+      description: "Flexible platform with multiple material handling options",
+      accessories: [
+        { name: "None", transferTime: 0 },
+        { name: "Conveyor Topper", transferTime: 12 },
+        { name: "Lift Table", transferTime: 15 },
+        { name: "Roller Top", transferTime: 8 }
+      ]
+    },
+    CB18: {
+      name: "CB18 AGF",
+      maxPayload: 1800,
+      maxSpeed: 3.0,
+      acceleration: 0.2,    // m/s²
+      deceleration: 0.3,    // m/s²
+      turnTime: 4.2,        // seconds per 90-degree turn
+      batteryLife: 720,
+      chargeTime: 45,
+      opportunisticChargeRate: 10,
+      recommendedWaitTime: 7,
+      recommendedEfficiency: 60,
+      description: "Forklift AGV for heavy loads",
+      mastLiftTimePerMeter: 4 // seconds per meter of lift
+    }
+  };
+  
+  // Vehicle parameters state - each vehicle has its own configuration
+  const [vehicles, setVehicles] = useState([
+    {
+      id: 1,
+      type: 'M10',
+      customParams: {}
+    }
+  ]);
+  
+  // Set selectedPlatforms based on vehicles
+  const [selectedPlatforms, setSelectedPlatforms] = useState(['M10']);
+  
+  // Update selectedPlatforms whenever vehicles changes
+  useEffect(() => {
+    const platforms = vehicles.map(vehicle => vehicle.type);
+    setSelectedPlatforms([...new Set(platforms)]); // Using Set to ensure uniqueness
+  }, [vehicles]);
+  
+  // Current vehicle being configured
+  const [currentVehicleId, setCurrentVehicleId] = useState(1);
+  
+  // Vehicle-specific parameters
+  const [mastHeight, setMastHeight] = useState(1.5); // meters for CB18
+  const [selectedAccessory, setSelectedAccessory] = useState("None"); // for ML2
+  
+  // Traffic density factors
+  const trafficDensityFactors = {
+    light: { factor: 1.0, description: "Minimal cross-traffic, clear pathways" },
+    moderate: { factor: 1.15, description: "Occasional cross-traffic, some shared pathways" },
+    heavy: { factor: 1.35, description: "Frequent cross-traffic, many shared pathways" }
+  };
+
+  // Unit conversion state
+  const [useMetric, setUseMetric] = useState(true);
+  
+  // Basic state variables
+  const [operatingHours, setOperatingHours] = useState(16);
+  const [availabilityTarget, setAvailabilityTarget] = useState(98);
+  const [trafficDensity, setTrafficDensity] = useState('light');
+  
+  // Opportunistic charging state - automatically enabled
+  const [opportunisticChargingStations, setOpportunisticChargingStations] = useState(3);
+  const [avgWaitTimePerTrip, setAvgWaitTimePerTrip] = useState(3);
+  const [opportunisticChargingEfficiency, setOpportunisticChargingEfficiency] = useState(65);
+  
+  // Connection state with empty initial data
+  const [connections, setConnections] = useState([]);
+  
+  // Results
+  const [fleetSize, setFleetSize] = useState(0);
+  const [utilizationRate, setUtilizationRate] = useState(0);
+  const [chargeStationsNeeded, setChargeStationsNeeded] = useState(0);
+  const [batteryImpactBeforeOpportunistic, setBatteryImpactBeforeOpportunistic] = useState(0);
+  const [batteryImpactAfterOpportunistic, setBatteryImpactAfterOpportunistic] = useState(0);
+  const [opportunisticChargingGain, setOpportunisticChargingGain] = useState(0);
+  const [totalDistance, setTotalDistance] = useState(0);
+  
+  // State for collapsible sections
+  const [showSpecifications, setShowSpecifications] = useState(true);
+  const [showCalculationMethodology, setShowCalculationMethodology] = useState(false);
+  const [showLiveCalculations, setShowLiveCalculations] = useState(false);
+  
+  // State for tracking live calculation details
+  const [calculationDetails, setCalculationDetails] = useState({
+    totalDistance: 0,
+    averageSpeed: 0,
+    travelTimeMinutes: 0,
+    totalTripTime: 0,
+    tripsPerHour: 0,
+    theoreticalVehicles: 0,
+    chargeCycles: 0,
+    totalChargeTime: 0,
+    opportunisticRecharge: 0,
+    effectiveOperatingTime: 0,
+    vehiclesForBattery: 0,
+    availabilityFactor: 0,
+    finalFleetSize: 0,
+    utilization: 0,
+    chargingStations: 0,
+    fleetByVehicleType: {}
+  });
+  
+  // Unit conversion functions
+  const metersToFeet = (meters) => meters * 3.28084;
+  const feetToMeters = (feet) => feet / 3.28084;
+  const kgToLbs = (kg) => kg * 2.20462;
+  const lbsToKg = (lbs) => lbs / 2.20462;
+  const mpsToFps = (mps) => mps * 3.28084;
+  const fpsToMps = (fps) => fps / 3.28084;
+  
+  // Get unit display text
+  const getDistanceUnit = () => useMetric ? "m" : "ft";
+  const getSpeedUnit = () => useMetric ? "m/s" : "ft/s";
+  const getWeightUnit = () => useMetric ? "kg" : "lbs";
+  
+  // Display formatted distance with correct units
+  const displayDistance = (meters) => {
+    if (!meters && meters !== 0) return "";
+    return useMetric ? meters.toFixed(1) : metersToFeet(meters).toFixed(1);
+  };
+  
+  // Handle lift height input changes with validation
+  const handleMastHeightChange = (value, vehicleId) => {
+    const numValue = parseFloat(value);
+    if (!isNaN(numValue) && numValue >= 0) {
+      // Convert to meters for internal storage
+      const newHeightInMeters = useMetric ? numValue : feetToMeters(numValue);
+      
+      // Update the specific vehicle's parameters
+      setVehicles(prevVehicles => 
+        prevVehicles.map(vehicle => 
+          vehicle.id === vehicleId 
+            ? { 
+                ...vehicle, 
+                customParams: { 
+                  ...vehicle.customParams, 
+                  mastHeight: newHeightInMeters 
+                } 
+              } 
+            : vehicle
+        )
+      );
+      
+      // Also update current mastHeight for UI if this is the current vehicle
+      if (vehicleId === currentVehicleId) {
+        setMastHeight(newHeightInMeters);
+      }
+    }
+  };
+  
+  // Handle accessory selection for specific vehicle
+  const handleAccessoryChange = (accessoryName, vehicleId) => {
+    // Update the specific vehicle's parameters
+    setVehicles(prevVehicles => 
+      prevVehicles.map(vehicle => 
+        vehicle.id === vehicleId 
+          ? { 
+              ...vehicle, 
+              customParams: { 
+                ...vehicle.customParams, 
+                selectedAccessory: accessoryName 
+              } 
+            } 
+          : vehicle
+      )
+    );
+    
+    // Also update current accessory for UI if this is the current vehicle
+    if (vehicleId === currentVehicleId) {
+      setSelectedAccessory(accessoryName);
+    }
+  };
+  
+  // Toggle unit system
+  const toggleUnitSystem = () => {
+    setUseMetric(!useMetric);
+  };
+  
+  // Add new vehicle configuration
+  const addVehicle = () => {
+    const newId = vehicles.length > 0 ? Math.max(...vehicles.map(v => v.id)) + 1 : 1;
+    const newVehicle = {
+      id: newId,
+      type: 'M10', // Default type
+      customParams: {}
+    };
+    setVehicles([...vehicles, newVehicle]);
+    setCurrentVehicleId(newId);
+  };
+  
+  // Remove vehicle configuration
+  const removeVehicle = (id) => {
+    if (vehicles.length <= 1) {
+      // Don't remove the last vehicle
+      return;
+    }
+    
+    // Remove the vehicle
+    const updatedVehicles = vehicles.filter(v => v.id !== id);
+    setVehicles(updatedVehicles);
+    
+    // Update connections if they reference this vehicle type
+    const removedVehicle = vehicles.find(v => v.id === id);
+    if (removedVehicle) {
+      const vehicleTypeStillExists = updatedVehicles.some(v => v.type === removedVehicle.type);
+      
+      if (!vehicleTypeStillExists) {
+        // This vehicle type is no longer available, update connections
+        const defaultType = updatedVehicles[0].type;
+        setConnections(connections.map(conn => 
+          conn.vehicleType === removedVehicle.type 
+            ? {...conn, vehicleType: defaultType} 
+            : conn
+        ));
+      }
+    }
+    
+    // Set current vehicle to first one if current was removed
+    if (currentVehicleId === id) {
+      setCurrentVehicleId(updatedVehicles[0].id);
+      
+      // Update current params based on the new current vehicle
+      const newCurrentVehicle = updatedVehicles[0];
+      if (newCurrentVehicle.type === 'CB18') {
+        setMastHeight(newCurrentVehicle.customParams.mastHeight || 1.5);
+      } else if (newCurrentVehicle.type === 'ML2') {
+        setSelectedAccessory(newCurrentVehicle.customParams.selectedAccessory || "None");
+      }
+    }
+  };
+  
+  // Change vehicle type
+  const changeVehicleType = (id, newType) => {
+    setVehicles(prevVehicles => 
+      prevVehicles.map(vehicle => 
+        vehicle.id === id 
+          ? { 
+              ...vehicle, 
+              type: newType,
+              // Initialize custom params based on vehicle type
+              customParams: newType === 'CB18' 
+                ? { ...vehicle.customParams, mastHeight: 1.5 }
+                : newType === 'ML2'
+                  ? { ...vehicle.customParams, selectedAccessory: "None" }
+                  : {}
+            } 
+          : vehicle
+      )
+    );
+    
+    // Update current params if changing the current vehicle
+    if (id === currentVehicleId) {
+      if (newType === 'CB18') {
+        setMastHeight(1.5);
+      } else if (newType === 'ML2') {
+        setSelectedAccessory("None");
+      }
+    }
+  };
+  
+  // Handle selection of current vehicle to configure
+  const selectVehicle = (id) => {
+    setCurrentVehicleId(id);
+    
+    // Update UI params based on selected vehicle
+    const vehicle = vehicles.find(v => v.id === id);
+    if (vehicle) {
+      if (vehicle.type === 'CB18') {
+        setMastHeight(vehicle.customParams.mastHeight || 1.5);
+      } else if (vehicle.type === 'ML2') {
+        setSelectedAccessory(vehicle.customParams.selectedAccessory || "None");
+      }
+    }
+  };
+  
+  // Add new connection
+  const addConnection = () => {
+    const newId = connections.length > 0 ? Math.max(...connections.map(c => c.id)) + 1 : 1;
+    
+    // Select a default vehicle type if available
+    let defaultVehicle = '';
+    if (vehicles.length > 0) {
+      defaultVehicle = vehicles[0].type;
+    }
+                          
+    setConnections([
+      ...connections, 
+      { 
+        id: newId, 
+        from: "", 
+        to: "", 
+        distance: "100", 
+        throughput: "5", 
+        turnCount: 2, 
+        hasOpportunisticCharging: true, 
+        vehicleType: defaultVehicle, 
+        requiredVehicles: 0 
+      }
+    ]);
+  };
+  
+  // Remove connection - modified to allow removing all connections
+  const removeConnection = (id) => {
+    setConnections(connections.filter(c => c.id !== id));
+  };
+  
+  // Update connection field
+  const updateConnection = (id, field, value) => {
+    setConnections(connections.map(c => 
+      c.id === id ? { ...c, [field]: value } : c
+    ));
+  };
+  
+  // Toggle opportunistic charging for a connection
+  const toggleOpportunisticCharging = (id) => {
+    setConnections(connections.map(c => 
+      c.id === id ? { ...c, hasOpportunisticCharging: !c.hasOpportunisticCharging } : c
+    ));
+  };
+  
+  // Clear all data and reset to defaults
+  const clearAll = () => {
+    // Reset vehicles to just one M10
+    setVehicles([{
+      id: 1,
+      type: 'M10',
+      customParams: {}
+    }]);
+    setCurrentVehicleId(1);
+    
+    // Reset basic parameters
+    setOperatingHours(16);
+    setAvailabilityTarget(98);
+    setTrafficDensity('light');
+    setOpportunisticChargingStations(3);
+    setAvgWaitTimePerTrip(defaultVehicleTypes.M10.recommendedWaitTime);
+    setOpportunisticChargingEfficiency(defaultVehicleTypes.M10.recommendedEfficiency);
+    
+    // Reset vehicle-specific parameters
+    setMastHeight(1.5);
+    setSelectedAccessory("None");
+    
+    // Reset connections to empty
+    setConnections([]);
+    
+    // Reset results
+    setFleetSize(0);
+    setUtilizationRate(0);
+    setChargeStationsNeeded(0);
+    setBatteryImpactBeforeOpportunistic(0);
+    setBatteryImpactAfterOpportunistic(0);
+    setOpportunisticChargingGain(0);
+    setTotalDistance(0);
+  };
+  
+  // Get vehicle-specific additional time
+  const getVehicleSpecificTime = (vehicleTypeId, vehicleParams) => {
+    if (vehicleTypeId === 'CB18') {
+      // Calculate mast lifting time (up and down)
+      const height = vehicleParams.mastHeight || 1.5;
+      return (height * defaultVehicleTypes.CB18.mastLiftTimePerMeter * 2) / 60; // convert to minutes
+    } else if (vehicleTypeId === 'ML2' && defaultVehicleTypes.ML2.accessories) {
+      // Get accessory transfer time
+      const accessoryName = vehicleParams.selectedAccessory || "None";
+      const accessory = defaultVehicleTypes.ML2.accessories.find(a => a.name === accessoryName);
+      return accessory ? accessory.transferTime / 60 : 0; // convert to minutes
+    }
+    return 0;
+  };
+  
+  // Find vehicle params for a specific vehicle type
+  const getVehicleParams = (vehicleType) => {
+    // Find the first vehicle configuration with this type
+    const vehicle = vehicles.find(v => v.type === vehicleType);
+    return vehicle ? vehicle.customParams : {};
+  };
+  
+  // Export results to Excel
+  const exportToExcel = () => {
+    alert("In a real implementation, this would export results to Excel");
+  };
+  
+  // Calculate fleet size
+  const calculateFleetSize = () => {
+    try {
+      // Validate inputs
+      if (!validateInputs()) return;
+      
+      // Store the results for each connection
+      let connectionResults = [];
+      
+      // Initialize summary variables
+      let totalDist = 0;
+      let maxTotalVehicles = 0;
+      let fleetByVehicleType = {};
+      
+      // Process each connection separately
+      const parsedConnections = connections.map(c => {
+        let distance = parseFloat(c.distance) || 0;
+        
+        // Convert to meters if using imperial
+        if (!useMetric && distance) {
+          distance = feetToMeters(distance);
+        }
+        
+        // Get the right vehicle type for this connection - ensure it exists
+        const connVehicleType = c.vehicleType && selectedPlatforms.includes(c.vehicleType) ? c.vehicleType : selectedPlatforms[0];
+        if (!connVehicleType) {
+          return null; // Skip this connection if no valid vehicle type
+        }
+        
+        const vehicle = defaultVehicleTypes[connVehicleType];
+        if (!vehicle) {
+          return null; // Skip if vehicle type doesn't exist in defaults
+        }
+        
+        // Add distance to total
+        totalDist += distance;
+        
+        return {
+          ...c,
+          distance: distance,
+          throughput: parseFloat(c.throughput) || 0,
+          hasOpportunisticCharging: c.hasOpportunisticCharging,
+          vehicle: vehicle,
+          vehicleType: connVehicleType, // Ensure we use the validated vehicle type
+          vehicleParams: getVehicleParams(connVehicleType)
+        };
+      }).filter(Boolean); // Remove any null connections
+      
+      // If no valid connections with vehicle types, return early
+      if (parsedConnections.length === 0) {
+        alert("No valid connections found. Please add connections with valid AGV platforms.");
+        return;
+      }
+      
+      // Set total distance for display
+      setTotalDistance(totalDist);
+      
+      // Calculate requirements for each connection
+      for (const conn of parsedConnections) {
+        const vehicle = conn.vehicle;
+        if (!vehicle) continue; // Skip invalid vehicles
+        
+        // Skip calculations for connections with no data
+        if (conn.distance <= 0 || conn.throughput <= 0) {
+          connectionResults.push({
+            ...conn,
+            requiredVehicles: 0,
+            travelTimeDetails: {
+              accelerationMinutes: 0,
+              constantSpeedMinutes: 0,
+              decelerationMinutes: 0,
+              turningMinutes: 0
+            }
+          });
+          continue;
+        }
+        
+        // Apply traffic density factor to travel time
+        const trafficFactor = trafficDensityFactors[trafficDensity].factor;
+        
+        // Get turn count (default to 0 if not set)
+        const turnCount = conn.turnCount || 0;
+        
+        // Calculate travel time using acceleration/deceleration and turns
+        const travelTimeDetails = calculateTravelTime(
+          conn.distance,
+          vehicle.maxSpeed,
+          vehicle.acceleration,
+          vehicle.deceleration,
+          turnCount,
+          vehicle.turnTime
+        );
+        
+        // Apply traffic factor to the total travel time
+        const travelTimeMinutes = travelTimeDetails.totalMinutes * trafficFactor;
+        
+        // Get vehicle-specific time for this connection's vehicle type
+        let vehicleSpecificTime = getVehicleSpecificTime(conn.vehicleType, conn.vehicleParams);
+        
+        // Average wait time per trip for charging + vehicle-specific time
+        const totalWaitTime = avgWaitTimePerTrip + vehicleSpecificTime;
+        
+        // Total trip time including wait time for charging
+        const totalTripTimeMinutes = travelTimeMinutes + totalWaitTime;
+        
+        // Calculate trips per vehicle per hour for this connection
+        const tripsPerVehiclePerHour = 60 / totalTripTimeMinutes;
+        
+        // Calculate theoretical number of vehicles needed for this connection
+        const theoreticalVehicles = conn.throughput / tripsPerVehiclePerHour;
+        
+        // Account for battery constraints
+        const operatingMinutesPerDay = operatingHours * 60;
+        const chargeCycles = operatingMinutesPerDay / vehicle.batteryLife;
+        const totalChargeTime = chargeCycles * vehicle.chargeTime;
+        
+        // Calculate opportunistic charging impact if this connection has it
+        let opportunisticChargingGain = 0;
+        if (conn.hasOpportunisticCharging) {
+          const totalOpportunisticTrips = conn.throughput * operatingHours;
+          const totalOpportunisticChargingMinutes = totalOpportunisticTrips * avgWaitTimePerTrip;
+          
+          // Calculate how much battery is recharged during opportunistic charging
+          const effectiveChargingRate = vehicle.opportunisticChargeRate * (opportunisticChargingEfficiency / 100);
+          const hourlyBatteryRecharge = (effectiveChargingRate / 100) * vehicle.batteryLife;
+          const minutelyBatteryRecharge = hourlyBatteryRecharge / 60;
+          
+          // Total battery minutes recharged
+          const totalBatteryMinutesRecharged = totalOpportunisticChargingMinutes * minutelyBatteryRecharge;
+          
+          // This reduces the need for dedicated charging
+          opportunisticChargingGain = Math.min(totalChargeTime, totalBatteryMinutesRecharged);
+        }
+        
+        // Recalculate effective operating time with opportunistic charging
+        const reducedChargingTime = totalChargeTime - opportunisticChargingGain;
+        const effectiveOperatingTime = operatingMinutesPerDay - reducedChargingTime;
+        
+        // Recalculate effective trips with opportunistic charging
+        const tripsPerVehiclePerDay = tripsPerVehiclePerHour * operatingHours;
+        const effectiveTrips = (effectiveOperatingTime / operatingMinutesPerDay) * tripsPerVehiclePerDay;
+        
+        // Recalculate vehicles needed with battery constraints
+        const vehiclesForBattery = conn.throughput * operatingHours / effectiveTrips;
+        
+        // Account for availability
+        const availabilityFactor = availabilityTarget / 100;
+        
+        // Calculate final vehicle requirement for this connection
+        const connectionVehicleRequirement = Math.ceil(Math.max(
+          theoreticalVehicles / availabilityFactor,
+          vehiclesForBattery
+        ));
+        
+        // Add to vehicle type summary
+        if (!fleetByVehicleType[conn.vehicleType]) {
+          fleetByVehicleType[conn.vehicleType] = 0;
+        }
+        fleetByVehicleType[conn.vehicleType] += connectionVehicleRequirement;
+        
+        // Update max total vehicles
+        maxTotalVehicles += connectionVehicleRequirement;
+        
+        // Store the results for this connection
+        connectionResults.push({
+          ...conn,
+          requiredVehicles: connectionVehicleRequirement,
+          travelTimeMinutes: travelTimeMinutes,
+          travelTimeDetails: travelTimeDetails,
+          totalTripTimeMinutes: totalTripTimeMinutes,
+          tripsPerVehiclePerHour: tripsPerVehiclePerHour,
+          theoreticalVehicles: theoreticalVehicles,
+          vehiclesForBattery: vehiclesForBattery,
+          factorDetermining: theoreticalVehicles / availabilityFactor > vehiclesForBattery ? 
+            'throughput' : 'battery'
+        });
+      }
+      
+      // Calculate charging stations - adjusted for opportunistic charging
+      // We'll use the primary vehicle type for this calculation
+      const primaryVehicleType = selectedPlatforms[0];
+      const primaryVehicle = defaultVehicleTypes[primaryVehicleType];
+      let chargingCycles = operatingHours / (primaryVehicle.batteryLife / 60);
+      
+      // Calculate total opportunistic charging gain for all connections
+      let totalOpportunisticGain = 0;
+      for (const conn of connectionResults) {
+        if (conn.hasOpportunisticCharging && conn.requiredVehicles > 0) {
+          const vehicle = defaultVehicleTypes[conn.vehicleType];
+          const totalOpportunisticTrips = conn.throughput * operatingHours;
+          const totalOpportunisticChargingMinutes = totalOpportunisticTrips * avgWaitTimePerTrip;
+          
+          // Calculate how much battery is recharged during opportunistic charging
+          const effectiveChargingRate = vehicle.opportunisticChargeRate * (opportunisticChargingEfficiency / 100);
+          const hourlyBatteryRecharge = (effectiveChargingRate / 100) * vehicle.batteryLife;
+          const minutelyBatteryRecharge = hourlyBatteryRecharge / 60;
+          
+          // Total battery minutes recharged
+          const totalBatteryMinutesRecharged = totalOpportunisticChargingMinutes * minutelyBatteryRecharge;
+          totalOpportunisticGain += totalBatteryMinutesRecharged;
+        }
+      }
+      
+      let totalChargeTime = 0;
+      for (const [vType, count] of Object.entries(fleetByVehicleType)) {
+        const veh = defaultVehicleTypes[vType];
+        const chargeCycles = operatingHours * 60 / veh.batteryLife;
+        totalChargeTime += count * chargeCycles * veh.chargeTime;
+      }
+      
+      // Store battery impacts
+      setBatteryImpactBeforeOpportunistic(totalChargeTime);
+      setBatteryImpactAfterOpportunistic(Math.max(0, totalChargeTime - totalOpportunisticGain));
+      setOpportunisticChargingGain(Math.min(totalChargeTime, totalOpportunisticGain));
+      
+      // Calculate charging stations based on total fleet
+      const chargingCycleReduction = opportunisticChargingGain / primaryVehicle.chargeTime;
+      chargingCycles = Math.max(0, chargingCycles - chargingCycleReduction);
+      
+      // Calculate average number of vehicles charging at once
+      let avgChargingVehicles = 0;
+      for (const [vType, count] of Object.entries(fleetByVehicleType)) {
+        const veh = defaultVehicleTypes[vType];
+        avgChargingVehicles += count * (veh.chargeTime / 60) * (operatingHours / (veh.batteryLife / 60));
+      }
+      
+      const calculatedChargeStations = Math.ceil(avgChargingVehicles);
+      
+      // Add opportunistic charging stations
+      const totalChargingStations = calculatedChargeStations + parseInt(opportunisticChargingStations);
+      
+      // Calculate overall utilization
+      const totalTheoreticalVehicles = connectionResults.reduce((sum, conn) => sum + (conn.theoreticalVehicles || 0), 0);
+      const utilization = Math.min(100, (totalTheoreticalVehicles / Math.max(1, maxTotalVehicles)) * 100);
+      
+      // Update connections with calculated vehicle requirements
+      setConnections(connectionResults);
+      
+      // Store calculation details for live calculation view
+      setCalculationDetails({
+        totalDistance: totalDist,
+        fleetByVehicleType: fleetByVehicleType,
+        connectionResults: connectionResults,
+        totalVehicles: maxTotalVehicles,
+        chargeCycles: chargingCycles,
+        totalChargeTime: totalChargeTime,
+        opportunisticRecharge: totalOpportunisticGain,
+        availabilityFactor: availabilityTarget / 100,
+        finalFleetSize: maxTotalVehicles,
+        utilization: utilization,
+        chargingStations: calculatedChargeStations,
+        totalChargingStations: totalChargingStations
+      });
+      
+      // Update state with results
+      setFleetSize(maxTotalVehicles);
+      setUtilizationRate(utilization);
+      setChargeStationsNeeded(totalChargingStations);
+      
+      // Automatically open the live calculations panel when results are calculated
+      setShowLiveCalculations(true);
+      
+      console.log("Calculation completed successfully:", maxTotalVehicles, "vehicles required");
+    } catch (error) {
+      console.error("Error in calculation:", error);
+      alert(`Calculation error: ${error.message}`);
+    }
+  };
+  
+  // Input validation
+  const validateInputs = () => {
+    let isValid = true;
+    
+    // Check if any AGV platforms are selected
+    if (selectedPlatforms.length === 0) {
+      alert("Please add at least one AGV platform before calculating");
+      isValid = false;
+      return isValid;
+    }
+    
+    // Basic validation
+    if (operatingHours <= 0 || isNaN(operatingHours)) {
+      alert("Please enter valid operating hours");
+      isValid = false;
+      return isValid;
+    }
+    
+    if (availabilityTarget <= 0 || availabilityTarget > 100 || isNaN(availabilityTarget)) {
+      alert("Please enter a valid availability target (1-100%)");
+      isValid = false;
+      return isValid;
+    }
+    
+    if (opportunisticChargingStations < 0 || isNaN(opportunisticChargingStations)) {
+      alert("Please enter a valid number of opportunistic charging stations");
+      isValid = false;
+      return isValid;
+    }
+    
+    // Check for connections that use CB18 with excessive lift height
+    for (const conn of connections) {
+      if (conn.vehicleType === 'CB18') {
+        // Find the vehicle parameters for this CB18
+        const vehicleParams = getVehicleParams('CB18');
+        const liftHeight = vehicleParams.mastHeight || 1.5;
+        
+        if (liftHeight > 4.47) {
+          alert(`The lift height exceeds maximum of 4.47 meters (176 inches) for connection ${conn.from} to ${conn.to}`);
+          isValid = false;
+          break;
+        }
+      }
+    }
+    
+    // Check if any connections exist
+    if (connections.length === 0) {
+      alert("Please add at least one connection before calculating");
+      isValid = false;
+      return isValid;
+    }
+    
+    // More lenient connection validation
+    let emptyConnectionCount = 0;
+    for (const conn of connections) {
+      // Allow empty connections, but ensure at least one is filled in
+      if (!conn.from || !conn.to || !conn.distance || !conn.throughput) {
+        emptyConnectionCount++;
+        continue;
+      }
+      
+      if (isNaN(parseFloat(conn.distance)) || parseFloat(conn.distance) <= 0) {
+        alert(`Please enter a valid distance for connection from ${conn.from || 'Source'} to ${conn.to || 'Destination'}`);
+        isValid = false;
+        break;
+      }
+      
+      if (isNaN(parseFloat(conn.throughput)) || parseFloat(conn.throughput) <= 0) {
+        alert(`Please enter a valid throughput for connection from ${conn.from || 'Source'} to ${conn.to || 'Destination'}`);
+        isValid = false;
+        break;
+      }
+      
+      // Ensure each connection has a valid vehicle type selected
+      if (!conn.vehicleType || !selectedPlatforms.includes(conn.vehicleType)) {
+        // Auto-assign a vehicle type instead of showing an error
+        conn.vehicleType = selectedPlatforms[0];
+      }
+    }
+    
+    // Make sure at least one connection is properly filled in
+    if (emptyConnectionCount === connections.length) {
+      alert("Please provide at least one valid connection with source, destination, distance, and throughput");
+      isValid = false;
+      return isValid;
+    }
+    
+    // Check if at least one connection has opportunistic charging
+    if (!connections.some(conn => conn.hasOpportunisticCharging)) {
+      // Enable it on the first connection instead of showing an error
+      if (connections.length > 0) {
+        setConnections(connections.map((conn, index) => 
+          index === 0 ? { ...conn, hasOpportunisticCharging: true } : conn
+        ));
+      } else {
+        alert("At least one connection must have opportunistic charging enabled");
+        isValid = false;
+        return isValid;
+      }
+    }
+    
+    return isValid;
+  };
+
+      // Ensure any existing connections have the new turnCount property
+    useEffect(() => {
+      if (connections.length > 0) {
+        const updatedConnections = connections.map(conn => {
+          if (conn.turnCount === undefined) {
+            return { ...conn, turnCount: 2 }; // Default to 2 turns
+          }
+          return conn;
+        });
+        
+        // Only update if changes were made
+        if (JSON.stringify(updatedConnections) !== JSON.stringify(connections)) {
+          setConnections(updatedConnections);
+        }
+      }
+    }, []);
+    
+    // Initialize with a default connection if there are none
+  useEffect(() => {
+    if (connections.length === 0 && selectedPlatforms.length > 0) {
+      addConnection();
+    }
+  }, [selectedPlatforms]);
+
+  return (
+    <div className="min-h-screen p-4" style={{ backgroundColor: "#f0f5f9" }}>
+      {/* Create a React component for the calculator */}
+      <div className="max-w-6xl mx-auto">
+        <div className="rounded-lg p-6 mb-6 shadow-lg" style={{ backgroundColor: RAL_5002.primary }}>
+          <h1 className="text-2xl font-bold text-center mb-4 text-white">
+            Bastian Solutions AGV Fleet Size Calculator
+          </h1>
+          <p className="text-center text-gray-200 mb-2">
+            Optimizes fleet size using opportunistic charging, acceleration/deceleration, and turn counting
+          </p>
+          
+          {/* Unit toggle switch */}
+          <div className="flex justify-center mt-4 mb-2">
+            <div className="flex items-center bg-gray-100 rounded-md p-1">
+              <span 
+                className="px-3 py-1 rounded-md text-sm font-medium cursor-pointer"
+                style={useMetric ? { backgroundColor: RAL_5002.light, color: RAL_5002.text } : { color: 'rgb(55, 65, 81)' }}
+                onClick={() => setUseMetric(true)}
+              >
+                Metric
+              </span>
+              <span 
+                className="px-3 py-1 rounded-md text-sm font-medium cursor-pointer"
+                style={!useMetric ? { backgroundColor: RAL_5002.light, color: RAL_5002.text } : { color: 'rgb(55, 65, 81)' }}
+                onClick={() => setUseMetric(false)}
+              >
+                Imperial
+              </span>
+            </div>
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Left Panel - Input Section */}
+          <div className="col-span-1 bg-white rounded-lg shadow-md p-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold" style={{ color: RAL_5002.primary }}>Input Parameters</h2>
+              <button 
+                onClick={clearAll}
+                className="px-3 py-1 text-white rounded-md text-sm"
+                style={{ backgroundColor: RAL_5002.dark }}
+                type="button"
+              >
+                Clear All
+              </button>
+            </div>
+            
+            {/* Vehicle Configuration Section */}
+            <div className="mb-6 p-3 rounded-lg border-l-4" style={{ backgroundColor: RAL_5002.extraLight, borderColor: RAL_5002.light }}>
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-md font-semibold" style={{ color: RAL_5002.primary }}>
+                  Vehicle Platforms
+                </h3>
+                <button 
+                  onClick={addVehicle}
+                  className="px-3 py-1 text-white rounded-md text-sm"
+                  style={{ backgroundColor: RAL_5002.primary }}
+                  type="button"
+                >
+                  Add Vehicle
+                </button>
+              </div>
+              
+              {/* Vehicle selection tabs */}
+              <div className="flex flex-wrap mb-3 border-b" style={{ borderColor: RAL_5002.light }}>
+                {vehicles.map((vehicle) => (
+                  <div 
+                    key={vehicle.id} 
+                    className={`mr-2 mt-2 px-3 py-1 rounded-t-md cursor-pointer ${
+                      currentVehicleId === vehicle.id 
+                        ? 'bg-white border border-b-0' 
+                        : 'hover:bg-gray-100'
+                    }`}
+                    style={currentVehicleId === vehicle.id 
+                      ? { color: RAL_5002.primary, borderColor: RAL_5002.light } 
+                      : { backgroundColor: RAL_5002.extraLight, color: RAL_5002.primary }}
+                    onClick={() => selectVehicle(vehicle.id)}
+                  >
+                    <div className="flex items-center">
+                      <span>{defaultVehicleTypes[vehicle.type].name}</span>
+                      {vehicles.length > 1 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent triggering the tab click
+                            removeVehicle(vehicle.id);
+                          }}
+                          className="ml-2 text-red-500 hover:text-red-700 text-xs"
+                          type="button"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Current vehicle configuration */}
+              {vehicles.map((vehicle) => {
+                if (vehicle.id !== currentVehicleId) return null;
+                
+                return (
+                  <div key={vehicle.id} className="p-3 bg-white rounded-md">
+                    <div className="mb-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Vehicle Type
+                      </label>
+                      <select
+                        value={vehicle.type}
+                        onChange={(e) => changeVehicleType(vehicle.id, e.target.value)}
+                        className="w-full p-2 border rounded-md"
+                      >
+                        {Object.keys(defaultVehicleTypes).map(type => (
+                          <option key={type} value={type}>{defaultVehicleTypes[type].name}</option>
+                        ))}
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {defaultVehicleTypes[vehicle.type]?.description || "No description available"}
+                      </p>
+                    </div>
+                    
+                    {/* Vehicle-specific parameters */}
+                    {vehicle.type === 'CB18' && (
+                      <div className="mb-3 p-3 bg-yellow-50 rounded-md">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Lift Height ({useMetric ? 'meters' : 'feet'})
+                        </label>
+                        <div className="flex items-center">
+                          <input
+                            type="number"
+                            value={useMetric ? mastHeight : metersToFeet(mastHeight)}
+                            onChange={(e) => {
+                              const value = e.target.value === '' ? 0 : parseFloat(e.target.value);
+                              if (!isNaN(value)) {
+                                handleMastHeightChange(value, vehicle.id);
+                              }
+                            }}
+                            min="0"
+                            step={useMetric ? "0.1" : "0.25"}
+                            className="w-full p-2 border rounded-l-md"
+                            aria-label={`Lift height in ${useMetric ? 'meters' : 'feet'}`}
+                          />
+                          <span className="bg-gray-100 px-3 py-2 border border-l-0 rounded-r-md text-gray-600">
+                            {useMetric ? 'm' : 'ft'}
+                          </span>
+                        </div>
+                        
+                        <div className="flex justify-between mt-2">
+                          <button
+                            type="button"
+                            onClick={() => handleMastHeightChange(useMetric ? 1.0 : 3.28, vehicle.id)}
+                            className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded-md text-xs font-medium text-gray-700"
+                          >
+                            {useMetric ? '1.0m' : '3.3ft'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMastHeightChange(useMetric ? 1.5 : 4.92, vehicle.id)}
+                            className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded-md text-xs font-medium text-gray-700"
+                          >
+                            {useMetric ? '1.5m' : '4.9ft'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMastHeightChange(useMetric ? 2.0 : 6.56, vehicle.id)}
+                            className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded-md text-xs font-medium text-gray-700"
+                          >
+                            {useMetric ? '2.0m' : '6.6ft'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleMastHeightChange(useMetric ? 3.0 : 9.84, vehicle.id)}
+                            className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded-md text-xs font-medium text-gray-700"
+                          >
+                            {useMetric ? '3.0m' : '9.8ft'}
+                          </button>
+                        </div>
+                        
+                        {/* Height warning message */}
+                        {mastHeight > 4.47 && (
+                          <div className="mt-2 p-2 bg-red-100 border-l-4 border-red-500 text-red-700 text-xs">
+                            <strong>Warning:</strong> Lift height exceeds 4.47 meters (176 inches). This configuration is not compatible with the CB18 AGF.
+                          </div>
+                        )}
+                        
+                        <p className="text-xs text-gray-600 mt-2">
+                          The lift height affects transfer time ({defaultVehicleTypes.CB18.mastLiftTimePerMeter} sec/meter × 2 for up/down)
+                        </p>
+                      </div>
+                    )}
+                    
+                    {vehicle.type === 'ML2' && (
+                      <div className="mb-3 p-3 bg-yellow-50 rounded-md">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Integrated Accessory
+                        </label>
+                        <div className="grid grid-cols-2 gap-2 mt-2">
+                          {defaultVehicleTypes.ML2.accessories.map(acc => (
+                            <button
+                              key={acc.name}
+                              type="button"
+                              onClick={() => handleAccessoryChange(acc.name, vehicle.id)}
+                              className={`px-3 py-2 rounded-md text-sm font-medium text-left ${
+                                selectedAccessory === acc.name
+                                  ? 'bg-yellow-200 border-2 border-yellow-400 text-yellow-800'
+                                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                              }`}
+                            >
+                              <div className="font-semibold">{acc.name}</div>
+                              {acc.transferTime > 0 && (
+                                <div className="text-xs mt-1">+{acc.transferTime} sec transfer</div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Vehicle specifications */}
+                    <div className="mt-3 text-xs text-gray-600">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="font-medium">Max Payload:</span> {useMetric ? 
+                            `${defaultVehicleTypes[vehicle.type].maxPayload} kg` : 
+                            `${kgToLbs(defaultVehicleTypes[vehicle.type].maxPayload).toFixed(0)} lbs`}
+                        </div>
+                        <div>
+                          <span className="font-medium">Max Speed:</span> {useMetric ? 
+                            `${defaultVehicleTypes[vehicle.type].maxSpeed} m/s` : 
+                            `${mpsToFps(defaultVehicleTypes[vehicle.type].maxSpeed).toFixed(1)} ft/s`}
+                        </div>
+                        <div>
+                          <span className="font-medium">Acceleration:</span> {useMetric ? 
+                            `${defaultVehicleTypes[vehicle.type].acceleration} m/s²` : 
+                            `${mpsToFps(defaultVehicleTypes[vehicle.type].acceleration).toFixed(2)} ft/s²`}
+                        </div>
+                        <div>
+                          <span className="font-medium">Deceleration:</span> {useMetric ? 
+                            `${defaultVehicleTypes[vehicle.type].deceleration} m/s²` : 
+                            `${mpsToFps(defaultVehicleTypes[vehicle.type].deceleration).toFixed(2)} ft/s²`}
+                        </div>
+                        <div>
+                          <span className="font-medium">Turn Time:</span> {defaultVehicleTypes[vehicle.type].turnTime.toFixed(1)} sec/turn
+                        </div>
+                        <div>
+                          <span className="font-medium">Battery Life:</span> {(defaultVehicleTypes[vehicle.type].batteryLife / 60).toFixed(1)} hours
+                        </div>
+                        <div>
+                          <span className="font-medium">Charge Time:</span> {defaultVehicleTypes[vehicle.type].chargeTime} minutes
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Operating Hours Per Day
+              </label>
+              <input
+                type="number"
+                value={operatingHours}
+                onChange={(e) => setOperatingHours(Number(e.target.value))}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Availability Target (%)
+              </label>
+              <input
+                type="number"
+                value={availabilityTarget}
+                onChange={(e) => setAvailabilityTarget(Number(e.target.value))}
+                className="w-full p-2 border rounded-md"
+              />
+            </div>
+            
+            {/* Opportunistic Charging Section */}
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="text-lg font-semibold" style={{ color: RAL_5002.accent }}>Opportunistic Charging</h3>
+                <span className="text-sm font-medium px-2 py-1 rounded" style={{ backgroundColor: RAL_5002.extraLight, color: RAL_5002.primary }}>
+                  Auto-Enabled
+                </span>
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Opportunistic Charging Stations
+                </label>
+                <input
+                  type="number"
+                  value={opportunisticChargingStations}
+                  onChange={(e) => setOpportunisticChargingStations(Number(e.target.value))}
+                  className="w-full p-2 border rounded-md"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Average Wait Time Per Trip (min)
+                </label>
+                <input
+                  type="number"
+                  value={avgWaitTimePerTrip}
+                  onChange={(e) => setAvgWaitTimePerTrip(Number(e.target.value))}
+                  className="w-full p-2 border rounded-md"
+                />
+              </div>
+              
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Charging Efficiency (%)
+                </label>
+                <input
+                  type="number"
+                  value={opportunisticChargingEfficiency}
+                  onChange={(e) => setOpportunisticChargingEfficiency(Number(e.target.value))}
+                  className="w-full p-2 border rounded-md"
+                />
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-center">
+              <button 
+                onClick={calculateFleetSize}
+                className={`px-8 py-3 text-white rounded-md text-md font-semibold shadow-md ${selectedPlatforms.length > 0 ? '' : 'opacity-50 cursor-not-allowed'}`}
+                style={{ backgroundColor: selectedPlatforms.length > 0 ? RAL_5002.primary : RAL_5002.dark }}
+                type="button"
+                disabled={selectedPlatforms.length === 0}
+              >
+                {selectedPlatforms.length > 0 ? 'Calculate Fleet Size' : 'Add AGV Platforms First'}
+              </button>
+            </div>
+          </div>
+          
+          {/* Right Panel - Connections and Results */}
+          <div className="col-span-1 md:col-span-2">
+            {/* Connections Section */}
+            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold" style={{ color: RAL_5002.primary }}>Route Connections</h2>
+                <button 
+                  onClick={addConnection}
+                  className="px-3 py-1 text-white rounded-md text-sm"
+                  style={{ backgroundColor: RAL_5002.primary }}
+                  type="button"
+                >
+                  Add Connection
+                </button>
+              </div>
+              
+              {/* Traffic Density Selection */}
+              <div className="mb-4 p-3 rounded-lg border-l-4" style={{ backgroundColor: RAL_5002.extraLight, borderColor: RAL_5002.light }}>
+                <div className="flex flex-wrap items-center">
+                  <div className="w-full md:w-1/3 lg:w-1/4">
+                    <label className="block text-sm font-medium mb-1" style={{ color: RAL_5002.primary }}>
+                      Traffic Density:
+                    </label>
+                  </div>
+                  <div className="w-full md:w-2/3 lg:w-3/4 mt-2 md:mt-0">
+                    <div className="grid grid-cols-3 gap-2">
+                      {Object.keys(trafficDensityFactors).map(density => (
+                        <button
+                          key={density}
+                          type="button"
+                          onClick={() => setTrafficDensity(density)}
+                          className={`px-3 py-2 rounded-md text-sm font-medium text-center`}
+                          style={trafficDensity === density 
+                            ? { 
+                                backgroundColor: RAL_5002.extraLight, 
+                                borderWidth: '2px',
+                                borderStyle: 'solid',
+                                borderColor: RAL_5002.light,
+                                color: RAL_5002.primary
+                              } 
+                            : { backgroundColor: 'rgb(243, 244, 246)', color: 'rgb(55, 65, 81)' }}
+                        >
+                          <div className="font-semibold capitalize">{density}</div>
+                          <div className="text-xs mt-1">
+                            {Math.round((trafficDensityFactors[density].factor - 1) * 100)}% impact
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-xs mt-2" style={{ color: RAL_5002.primary }}>
+                      {trafficDensityFactors[trafficDensity].description}
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {connections.length === 0 ? (
+                <div className="text-center p-6 bg-gray-50 rounded-lg mb-4">
+                  <p className="text-gray-500">No connections added yet. Click "Add Connection" to create your first material flow.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200 mb-4">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">From</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">To</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vehicle</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Distance ({getDistanceUnit()})</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Turns (#)</th>
+                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Throughput (trips/hr)</th>
+                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Charging</th>
+                        <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {connections.map((connection) => (
+                        <tr key={connection.id}>
+                          <td className="px-4 py-2">
+                            <input
+                              type="text"
+                              value={connection.from}
+                              onChange={(e) => updateConnection(connection.id, 'from', e.target.value)}
+                              className="w-full p-1 border rounded-md"
+                              placeholder="Start location"
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            <input
+                              type="text"
+                              value={connection.to}
+                              onChange={(e) => updateConnection(connection.id, 'to', e.target.value)}
+                              className="w-full p-1 border rounded-md"
+                              placeholder="End location"
+                            />
+                          </td>
+                          <td className="px-4 py-2">
+                            {selectedPlatforms.length > 0 ? (
+                              <select
+                                value={connection.vehicleType}
+                                onChange={(e) => updateConnection(connection.id, 'vehicleType', e.target.value)}
+                                className="w-full p-1 border rounded-md text-xs"
+                              >
+                                <option value="" disabled>Select platform</option>
+                                {selectedPlatforms.map(type => (
+                                  <option key={type} value={type}>{defaultVehicleTypes[type].name}</option>
+                                ))}
+                              </select>
+                            ) : (
+                              <div className="text-xs text-center text-gray-500 p-1 border rounded-md bg-gray-50">
+                                No platforms added
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="flex items-center">
+                              <input
+                                type="number"
+                                value={connection.distance}
+                                onChange={(e) => {
+                                  const value = e.target.value === '' ? '' : e.target.value;
+                                  updateConnection(connection.id, 'distance', value);
+                                }}
+                                className="w-full p-1 border rounded-l-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="Distance"
+                                min="0"
+                                step="1"
+                              />
+                              <span className="bg-gray-100 px-2 py-1 border border-l-0 rounded-r-md text-gray-600 text-xs">
+                                {getDistanceUnit()}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-2">
+                            <div className="flex items-center">
+                              <input
+                                type="number"
+                                value={connection.throughput}
+                                onChange={(e) => {
+                                  const value = e.target.value === '' ? '' : e.target.value;
+                                  updateConnection(connection.id, 'throughput', value);
+                                }}
+                                className="w-full p-1 border rounded-l-md focus:outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="Trips/hour"
+                                min="0"
+                                step="1"
+                              />
+                              <span className="bg-gray-100 px-2 py-1 border border-l-0 rounded-r-md text-gray-600 text-xs">
+                                trips/hr
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => toggleOpportunisticCharging(connection.id)}
+                              className={`px-2 py-1 rounded-md text-xs font-medium border `}
+                              style={connection.hasOpportunisticCharging
+                                ? { 
+                                    backgroundColor: RAL_5002.extraLight, 
+                                    color: RAL_5002.primary,
+                                    borderColor: RAL_5002.light
+                                  }
+                                : { 
+                                    backgroundColor: 'rgb(243, 244, 246)', 
+                                    color: 'rgb(55, 65, 81)',
+                                    borderColor: 'rgb(209, 213, 219)'
+                                  }
+                              }
+                            >
+                              {connection.hasOpportunisticCharging ? 'Enabled' : 'Disabled'}
+                            </button>
+                          </td>
+                          <td className="px-4 py-2 text-center">
+                            <button
+                              onClick={() => removeConnection(connection.id)}
+                              className="text-red-600 hover:text-red-800"
+                              type="button"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              
+                          <div className="px-4 py-2">
+                            <div className="flex flex-wrap justify-between items-center text-sm text-gray-700">
+                              <span>Total Connections: <span className="font-semibold">{connections.length}</span></span>
+                              <span>Total Distance: <span className="font-semibold">{displayDistance(totalDistance)} {getDistanceUnit()}</span></span>
+                              <span>Total Turns: <span className="font-semibold">{connections.reduce((sum, conn) => sum + (parseInt(conn.turnCount) || 0), 0)}</span></span>
+                              <span>Traffic Factor: <span className="font-semibold">{(trafficDensityFactors[trafficDensity].factor * 100).toFixed(0)}%</span></span>
+                            </div>
+                          </div>
+            </div>
+            
+            {/* Flow Visualization Section */}
+            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+              <h2 className="text-xl font-semibold mb-4" style={{ color: RAL_5002.primary }}>
+                Material Flow Visualization
+              </h2>
+              
+              <FlowVisualizer connections={connections} />
+            </div>
+            
+            {/* Results Section */}
+            <div id="results-section" className="bg-white rounded-lg shadow-md p-4 mb-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold" style={{ color: RAL_5002.primary }}>
+                  Fleet Size Calculation Results
+                </h2>
+                
+                {/* Excel Export Button */}
+                <button 
+                  onClick={exportToExcel}
+                  className={`px-4 py-2 text-white rounded-md text-sm flex items-center ${fleetSize > 0 ? '' : 'opacity-50 cursor-not-allowed'}`}
+                  style={{ backgroundColor: fleetSize > 0 ? '#2E7D32' : '#90A4AE' }}
+                  type="button"
+                  disabled={fleetSize === 0}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Export to Excel
+                </button>
+              </div>
+              
+              {fleetSize > 0 ? (
+                <div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <div className="rounded-lg p-4 border-l-4" style={{ backgroundColor: RAL_5002.extraLight, borderColor: RAL_5002.primary }}>
+                      <h3 className="font-semibold text-lg" style={{ color: RAL_5002.primary }}>Required Fleet Size</h3>
+                      <p className="text-4xl font-bold" style={{ color: RAL_5002.primary }}>{fleetSize} vehicles</p>
+                      {Object.entries(calculationDetails.fleetByVehicleType || {}).length > 0 && (
+                        <div className="mt-2 text-sm" style={{ color: RAL_5002.secondary }}>
+                          {Object.entries(calculationDetails.fleetByVehicleType || {}).map(([type, count]) => (
+                            <div key={type} className="flex justify-between items-center">
+                              <span>{defaultVehicleTypes[type].name}:</span>
+                              <span className="font-medium">{count} vehicles</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="rounded-lg p-4 border-l-4 border-green-500" style={{ backgroundColor: '#E8F5E9' }}>
+                      <h3 className="font-semibold text-lg text-green-800">Vehicle Utilization</h3>
+                      <p className="text-4xl font-bold text-green-600">{utilizationRate.toFixed(1)}%</p>
+                      <div className="h-2 bg-gray-200 rounded-full mt-2">
+                        <div 
+                          className="h-2 rounded-full" 
+                          style={{ width: `${Math.min(100, utilizationRate)}%`, backgroundColor: "#2E7D32" }}
+                        ></div>
+                      </div>
+                    </div>
+                    
+                    <div className="rounded-lg p-4 border-l-4 border-amber-500" style={{ backgroundColor: '#FFF8E1' }}>
+                      <h3 className="font-semibold text-lg text-amber-800">Charging Stations</h3>
+                      <p className="text-4xl font-bold text-amber-600">{chargeStationsNeeded}</p>
+                      <p className="text-sm text-amber-700 mt-2">
+                        Includes {opportunisticChargingStations} opportunistic stations
+                      </p>
+                    </div>
+                    
+                    <div className="rounded-lg p-4 border-l-4" style={{ backgroundColor: '#E9E3F0', borderColor: RAL_5002.accent }}>
+                      <h3 className="font-semibold text-lg" style={{ color: RAL_5002.accent }}>Charging Time Saved</h3>
+                      <p className="text-4xl font-bold" style={{ color: RAL_5002.accent }}>{opportunisticChargingGain.toFixed(0)} min</p>
+                      <p className="text-sm mt-2" style={{ color: RAL_5002.secondary }}>
+                        {batteryImpactBeforeOpportunistic.toFixed(0)} min → {batteryImpactAfterOpportunistic.toFixed(0)} min
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Connection-specific requirements */}
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 mb-4">
+                    <h3 className="font-semibold text-lg text-gray-800 mb-3">Vehicles Required Per Connection</h3>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Connection</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Vehicle Type</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Distance</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Throughput</th>
+                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Trip Time</th>
+                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Vehicles Needed</th>
+                            <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Determining Factor</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {connections.map(connection => {
+                            // Ensure the vehicle type exists
+                            const hasValidVehicle = connection.vehicleType && selectedPlatforms.includes(connection.vehicleType);
+                            
+                            return (
+                              <tr key={`result-${connection.id}`} className={connection.requiredVehicles > 0 ? '' : 'text-gray-400'}>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                  {connection.from} → {connection.to}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                  {hasValidVehicle ? defaultVehicleTypes[connection.vehicleType].name : 'Unknown'}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                  {displayDistance(connection.distance)} {getDistanceUnit()}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm">
+                                  {connection.throughput} trips/hr
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                  {connection.totalTripTimeMinutes ? connection.totalTripTimeMinutes.toFixed(1) : '-'} min
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center font-bold">
+                                  {connection.requiredVehicles || '-'}
+                                </td>
+                                <td className="px-3 py-2 whitespace-nowrap text-sm text-center">
+                                  {connection.factorDetermining === 'throughput' ? 
+                                    <span style={{ color: RAL_5002.primary }}>Throughput</span> : 
+                                    connection.factorDetermining === 'battery' ? 
+                                    <span className="text-amber-600">Battery</span> : '-'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                          <tr className="bg-gray-50 font-medium">
+                            <td colSpan={5} className="px-3 py-2 text-right text-sm">
+                              Total Fleet Size:
+                            </td>
+                            <td className="px-3 py-2 text-center text-sm font-bold">
+                              {fleetSize}
+                            </td>
+                            <td className="px-3 py-2"></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-gray-50 p-6 rounded-lg text-center">
+                  <h3 className="text-lg font-medium text-gray-900">No Results Yet</h3>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Enter route connections and click Calculate to see results
+                  </p>
+                </div>
+              )}
+            </div>
+            
+            {/* Live Calculations Section */}
+            <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+              <div 
+                className="flex justify-between items-center cursor-pointer p-3 rounded-lg"
+                style={{ backgroundColor: RAL_5002.extraLight }}
+                onClick={() => setShowLiveCalculations(!showLiveCalculations)}
+              >
+                <h2 className="text-xl font-semibold" style={{ color: RAL_5002.primary }}>Live Calculation Details</h2>
+                <span style={{ color: RAL_5002.primary }} className="text-2xl">{showLiveCalculations ? '▼' : '►'}</span>
+              </div>
+              
+              {showLiveCalculations && fleetSize > 0 && (
+                <div className="mt-4 border-l-4 pl-4" style={{ borderColor: RAL_5002.extraLight }}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-medium" style={{ color: RAL_5002.primary }}>Fleet Breakdown</h3>
+                      
+                      <div className="bg-gray-50 p-3 rounded">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium text-gray-700">Total Required Fleet:</span>
+                          <span className="text-sm text-gray-900">{fleetSize} vehicles total</span>
+                        </div>
+                      </div>
+                      
+                      {Object.entries(calculationDetails.fleetByVehicleType || {}).map(([type, count]) => {
+                        // Skip if vehicle type doesn't exist
+                        if (!selectedPlatforms.includes(type)) return null;
+                        
+                        return (
+                          <div key={type} className="bg-gray-50 p-3 rounded">
+                            <div className="flex justify-between">
+                              <span className="text-sm font-medium text-gray-700">{defaultVehicleTypes[type].name}:</span>
+                              <span className="text-sm text-gray-900">{count} vehicles</span>
+                            </div>
+                            <div className="mt-1 text-xs text-gray-500">
+                              Max payload: {useMetric ? 
+                                `${defaultVehicleTypes[type].maxPayload} kg` : 
+                                `${kgToLbs(defaultVehicleTypes[type].maxPayload).toFixed(0)} lbs`}
+                              , Speed: {useMetric ? 
+                                `${defaultVehicleTypes[type].maxSpeed} m/s` : 
+                                `${mpsToFps(defaultVehicleTypes[type].maxSpeed).toFixed(2)} ft/s`}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      <div className="bg-gray-50 p-3 rounded">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium text-gray-700">Total Distance:</span>
+                          <span className="text-sm text-gray-900">{useMetric ? 
+                            `${calculationDetails.totalDistance.toFixed(1)} m` : 
+                            `${metersToFeet(calculationDetails.totalDistance).toFixed(1)} ft`}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 p-3 rounded">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium text-gray-700">Traffic Factor:</span>
+                          <span className="text-sm text-gray-900">{trafficDensityFactors[trafficDensity].factor.toFixed(2)}× ({trafficDensity})</span>
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          {trafficDensityFactors[trafficDensity].description}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-medium" style={{ color: RAL_5002.primary }}>Charging & Efficiency</h3>
+                      
+                      <div className="bg-gray-50 p-3 rounded">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium text-gray-700">Opportunistic Charging Gain:</span>
+                          <span className="text-sm text-gray-900">{opportunisticChargingGain.toFixed(0)} minutes</span>
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          Reduces charging time from {batteryImpactBeforeOpportunistic.toFixed(0)} min to {batteryImpactAfterOpportunistic.toFixed(0)} min
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 p-3 rounded">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium text-gray-700">Availability:</span>
+                          <span className="text-sm text-gray-900">{(calculationDetails.availabilityFactor * 100).toFixed(1)}%</span>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 p-3 rounded">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium text-gray-700">Charging Stations:</span>
+                          <span className="text-sm text-gray-900">{chargeStationsNeeded} stations</span>
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          {calculationDetails.chargingStations} calculated + {opportunisticChargingStations} opportunistic
+                        </div>
+                      </div>
+                      
+                      <div className="bg-gray-50 p-3 rounded">
+                        <div className="flex justify-between">
+                          <span className="text-sm font-medium text-gray-700">Fleet Utilization:</span>
+                          <span className="text-sm text-gray-900">{utilizationRate.toFixed(1)}%</span>
+                        </div>
+                        <div className="mt-1 text-xs text-gray-500">
+                          Lower utilization suggests opportunities for process optimization
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {showLiveCalculations && fleetSize === 0 && (
+                <div className="p-4 text-center text-gray-500">
+                  <p>Calculate fleet size to see detailed calculation numbers.</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Calculation Methodology Section */}
+            <div className="bg-white rounded-lg shadow-md p-4">
+              <div 
+                className="flex justify-between items-center cursor-pointer p-3 rounded-lg"
+                style={{ backgroundColor: "#E8F5E9" }}
+                onClick={() => setShowCalculationMethodology(!showCalculationMethodology)}
+              >
+                <h2 className="text-xl font-semibold text-green-700">Calculation Methodology</h2>
+                <span className="text-green-600 text-2xl">{showCalculationMethodology ? '▼' : '►'}</span>
+              </div>
+              
+              {showCalculationMethodology && (
+                <div className="mt-4 border-l-4 border-green-200 pl-4">
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-medium text-green-800 mb-2">Advanced Travel Time Calculation</h3>
+                      <p className="text-sm text-gray-700 mb-2">
+                        The travel time calculation has been enhanced to incorporate vehicle dynamics and route characteristics:
+                      </p>
+                      <ol className="list-decimal pl-5 text-sm text-gray-700 space-y-2">
+                        <li>Acceleration phase: Time to reach cruising speed factoring in vehicle acceleration rate</li>
+                        <li>Constant speed phase: Time spent at maximum speed over remaining distance</li>
+                        <li>Deceleration phase: Time to come to a stop factoring in vehicle deceleration rate</li>
+                        <li>Turn time: Additional time needed for each 90° turn in the route</li>
+                        <li>Traffic factor: Overall time adjustment based on traffic density conditions</li>
+                      </ol>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-medium text-green-800 mb-2">Theoretical Fleet Size</h3>
+                      <p className="text-sm text-gray-700 mb-2">
+                        The calculation begins by determining the theoretical number of vehicles needed based on throughput requirements:
+                      </p>
+                      <ol className="list-decimal pl-5 text-sm text-gray-700 space-y-2">
+                        <li>Total distance is calculated from all connections</li>
+                        <li>Average speed is determined as 70% of maximum vehicle speed, adjusted by the traffic density factor</li>
+                        <li>Travel time per trip = Distance ÷ Average speed</li>
+                        <li>Total trip time = Travel time + Wait time + Vehicle-specific handling time</li>
+                        <li>Trips per vehicle per hour = 60 minutes ÷ Total trip time</li>
+                        <li>Theoretical vehicles needed = Maximum throughput requirement ÷ Trips per vehicle per hour</li>
+                      </ol>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-medium text-green-800 mb-2">Battery Constraints</h3>
+                      <p className="text-sm text-gray-700 mb-2">
+                        Battery limitations are considered to ensure vehicles can operate throughout the shift:
+                      </p>
+                      <ol className="list-decimal pl-5 text-sm text-gray-700 space-y-2">
+                        <li>Daily charge cycles = Operating minutes per day ÷ Battery life in minutes</li>
+                        <li>Total charge time = Charge cycles × Charge time per cycle</li>
+                        <li>Opportunistic charging gain is calculated based on wait times at designated stations</li>
+                        <li>Effective operating time = Total operating time - (Charge time - Opportunistic charging gain)</li>
+                        <li>Vehicles needed for battery constraints = Maximum throughput × Operating hours ÷ Effective trips per vehicle</li>
+                      </ol>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-medium text-green-800 mb-2">Final Fleet Size</h3>
+                      <p className="text-sm text-gray-700 mb-2">
+                        The final fleet size accounts for availability targets:
+                      </p>
+                      <ol className="list-decimal pl-5 text-sm text-gray-700 space-y-2">
+                        <li>Availability factor = Availability target ÷ 100</li>
+                        <li>Final fleet size = Max(Theoretical vehicles ÷ Availability, Vehicles needed for battery)</li>
+                        <li>Result is rounded up to the nearest whole number</li>
+                      </ol>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-medium text-green-800 mb-2">Charging Stations</h3>
+                      <p className="text-sm text-gray-700 mb-2">
+                        The number of charging stations needed is calculated as:
+                      </p>
+                      <ol className="list-decimal pl-5 text-sm text-gray-700 space-y-2">
+                        <li>Average charging vehicles = Fleet size × (Charge time ÷ 60) × Charge cycles</li>
+                        <li>This is adjusted downward based on opportunistic charging capabilities</li>
+                        <li>Total charging stations = Calculated charge stations + Opportunistic charging stations</li>
+                      </ol>
+                    </div>
+                    
+                    <div>
+                      <h3 className="text-lg font-medium text-green-800 mb-2">Vehicle Utilization</h3>
+                      <p className="text-sm text-gray-700 mb-2">
+                        Utilization rate indicates how efficiently the fleet is being used:
+                      </p>
+                      <p className="text-sm text-gray-700 pl-5">
+                        Utilization = (Theoretical vehicles ÷ Final fleet size) × 100%
+                      </p>
+                      <p className="text-sm text-gray-700 mt-2">
+                        Lower utilization rates may indicate opportunities for process improvements or reduced fleet size.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        
+        {/* Footer */}
+        <div className="mt-6 text-center text-gray-500 text-sm">
+          <p>AGV Fleet Calculator with Traffic Density & Vehicle-Specific Parameters</p>
+          <p className="mt-1">Units: {useMetric ? 'Metric (m, kg)' : 'Imperial (ft, lbs)'}</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default AGVFleetCalculator;
